@@ -1,0 +1,10 @@
+{
+  "sih-demo-patient-001": {
+    "share_with_care_team": true,
+    "share_memory_bank": true,
+    "share_reminders": true,
+    "allow_research_deidentified": true,
+    "updated_at": "2026-09-11T18:44:51+00:00",
+    "policy_version": "2026-v2-sih-demo"
+  }
+}

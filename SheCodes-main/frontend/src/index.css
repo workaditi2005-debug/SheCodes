@@ -1,0 +1,194 @@
+/* ============================= */
+/* 1️⃣ Google Fonts MUST BE FIRST */
+/* ============================= */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+
+
+/* ============================= */
+/* 2️⃣ Tailwind Directives */
+/* ============================= */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* ============================= */
+/* 3️⃣ Global Reset */
+/* ============================= */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+
+/* ============================= */
+/* 4️⃣ Body Styling — Rich Ambient Depth */
+/* ============================= */
+body {
+  font-family: 'DM Sans', sans-serif;
+  color: #f0ece3;
+  background-color: #07070b;
+  background-image:
+    radial-gradient(ellipse 65% 55% at -5%  -5%,  rgba(220,55,55,0.24)   0%, transparent 60%),
+    radial-gradient(ellipse 50% 45% at 105%  2%,  rgba(80,130,255,0.10)  0%, transparent 55%),
+    radial-gradient(ellipse 90% 70% at 50% 15%,   rgba(180,40,40,0.07)   0%, transparent 58%),
+    radial-gradient(ellipse 40% 35% at 0%   55%,  rgba(245,158,11,0.07)  0%, transparent 55%),
+    radial-gradient(ellipse 42% 38% at 100% 52%,  rgba(120,80,220,0.07)  0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 50% 105%,  rgba(160,80,20,0.10)   0%, transparent 65%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+html, #root {
+  min-height: 100%;
+}
+
+
+/* ============================= */
+/* 5️⃣ Scrollbar */
+/* ============================= */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #0a0a0f; }
+::-webkit-scrollbar-thumb { background: rgba(232,64,64,0.22); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(232,64,64,0.38); }
+
+
+/* ============================= */
+/* 6️⃣ Glass Effects */
+/* ============================= */
+.glass {
+  background: rgba(255,255,255,0.060) !important;
+  backdrop-filter: blur(28px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.52), inset 0 1px 0 rgba(255,255,255,0.11) !important;
+}
+
+.glass-dark {
+  background: rgba(10,10,16,0.74) !important;
+  backdrop-filter: blur(32px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(140%) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  box-shadow: 0 16px 56px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.09) !important;
+}
+
+.glass-float {
+  background: rgba(18,18,28,0.64) !important;
+  backdrop-filter: blur(26px) saturate(170%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(170%) !important;
+  border: 1px solid rgba(255,255,255,0.17) !important;
+  box-shadow: 0 24px 72px rgba(0,0,0,0.56), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+}
+
+.glass-sidebar {
+  background: rgba(8,8,14,0.86) !important;
+  backdrop-filter: blur(36px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(130%) !important;
+  border-right: 1px solid rgba(255,255,255,0.09) !important;
+}
+
+.glass-hover {
+  transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.28s ease, border-color 0.28s ease !important;
+}
+.glass-hover:hover {
+  transform: translateY(-4px) !important;
+  border-color: rgba(255,255,255,0.22) !important;
+  box-shadow: 0 24px 72px rgba(0,0,0,0.58), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+}
+
+.glass-input {
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  color: #f0ece3 !important;
+  transition: border-color 0.22s, box-shadow 0.22s !important;
+}
+.glass-input:focus {
+  border-color: rgba(232,64,64,0.55) !important;
+  box-shadow: 0 0 0 3px rgba(232,64,64,0.13), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+  outline: none !important;
+}
+.glass-input::placeholder {
+  color: rgba(107,103,96,0.75);
+}
+/* Fix browser autofill yellow/lime background override */
+.glass-input:-webkit-autofill,
+.glass-input:-webkit-autofill:hover,
+.glass-input:-webkit-autofill:focus,
+.glass-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #111110 inset !important;
+  box-shadow: 0 0 0 1000px #111110 inset !important;
+  -webkit-text-fill-color: #f0ece3 !important;
+  caret-color: #f0ece3 !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  transition: background-color 99999s ease-in-out 0s !important;
+}
+
+
+/* ============================= */
+/* 7️⃣ Animations */
+/* ============================= */
+@keyframes float {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-12px); }
+}
+@keyframes floatR {
+  0%,100% { transform: translateY(0) rotate(2deg); }
+  50%     { transform: translateY(-10px) rotate(2deg); }
+}
+@keyframes floatL {
+  0%,100% { transform: translateY(0) rotate(-2deg); }
+  50%     { transform: translateY(-14px) rotate(-2deg); }
+}
+@keyframes blink {
+  0%,100% { opacity: 1; }
+  50%     { opacity: 0.2; }
+}
+@keyframes twinkle {
+  0%,100% { opacity: 0.08; transform: scale(1); }
+  50%     { opacity: 0.90; transform: scale(1.5); }
+}
+@keyframes shimmer {
+  0%,100% { opacity: 0.4; }
+  50%     { opacity: 1; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes record-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(232,64,64,0.5); }
+  70%     { box-shadow: 0 0 0 18px rgba(232,64,64,0); }
+}
+@keyframes glow-pulse {
+  0%,100% { opacity: 0.35; transform: scale(1); }
+  50%     { opacity: 0.85; transform: scale(1.10); }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes ambient-orb {
+  0%    { transform: translate(0,0) scale(1); }
+  33%   { transform: translate(40px,-25px) scale(1.06); }
+  66%   { transform: translate(-25px,25px) scale(0.96); }
+  100%  { transform: translate(0,0) scale(1); }
+}
+
+/* ============================= */
+/* 8️⃣ Section divider with glow */
+/* ============================= */
+.section-glow {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  position: relative;
+}
+.section-glow::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 20%;
+  right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(232,64,64,0.40), transparent);
+}

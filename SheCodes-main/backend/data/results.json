@@ -1,0 +1,151 @@
+{
+  "sih-demo-patient-001": [
+    {
+      "timestamp": "2026-01-20T10:00:00Z",
+      "createdAt": "2026-01-20T10:00:00Z",
+      "speech_score": 82.0,
+      "memory_score": 78.0,
+      "reaction_score": 80.0,
+      "executive_score": 76.0,
+      "motor_score": 84.0,
+      "composite_risk_score": 20.0,
+      "hybrid_risk": 21.5,
+      "confidence": 0.88,
+      "risk_levels": {
+        "alzheimers": "Low",
+        "dementia": "Low",
+        "parkinsons": "Low"
+      },
+      "attention_variability_index": 0.12,
+      "anomaly_alert": "none",
+      "disclaimer": "Synthetic demonstration data. Screening indicators only, not a clinical diagnosis."
+    },
+    {
+      "timestamp": "2026-01-27T10:00:00Z",
+      "createdAt": "2026-01-27T10:00:00Z",
+      "speech_score": 80.0,
+      "memory_score": 74.0,
+      "reaction_score": 76.0,
+      "executive_score": 75.0,
+      "motor_score": 82.0,
+      "composite_risk_score": 23.5,
+      "hybrid_risk": 24.0,
+      "confidence": 0.86,
+      "risk_levels": {
+        "alzheimers": "Low",
+        "dementia": "Low",
+        "parkinsons": "Low"
+      },
+      "attention_variability_index": 0.14,
+      "anomaly_alert": "none",
+      "disclaimer": "Synthetic demonstration data. Screening indicators only, not a clinical diagnosis."
+    },
+    {
+      "timestamp": "2026-02-03T10:00:00Z",
+      "createdAt": "2026-02-03T10:00:00Z",
+      "speech_score": 76.0,
+      "memory_score": 68.0,
+      "reaction_score": 72.0,
+      "executive_score": 72.0,
+      "motor_score": 80.0,
+      "composite_risk_score": 28.0,
+      "hybrid_risk": 29.5,
+      "confidence": 0.85,
+      "risk_levels": {
+        "alzheimers": "Mild Concern",
+        "dementia": "Low",
+        "parkinsons": "Low"
+      },
+      "attention_variability_index": 0.16,
+      "anomaly_alert": "none",
+      "disclaimer": "Synthetic demonstration data. Screening indicators only, not a clinical diagnosis."
+    },
+    {
+      "timestamp": "2026-02-10T10:00:00Z",
+      "createdAt": "2026-02-10T10:00:00Z",
+      "speech_score": 74.0,
+      "memory_score": 64.0,
+      "reaction_score": 68.0,
+      "executive_score": 70.0,
+      "motor_score": 78.0,
+      "composite_risk_score": 32.0,
+      "hybrid_risk": 33.0,
+      "confidence": 0.82,
+      "risk_levels": {
+        "alzheimers": "Mild Concern",
+        "dementia": "Low",
+        "parkinsons": "Low"
+      },
+      "attention_variability_index": 0.18,
+      "anomaly_alert": "none",
+      "disclaimer": "Synthetic demonstration data. Screening indicators only, not a clinical diagnosis."
+    },
+    {
+      "timestamp": "2026-02-17T10:00:00Z",
+      "createdAt": "2026-02-17T10:00:00Z",
+      "speech_score": 71.0,
+      "memory_score": 60.0,
+      "reaction_score": 64.0,
+      "executive_score": 68.0,
+      "motor_score": 76.0,
+      "composite_risk_score": 36.5,
+      "hybrid_risk": 37.0,
+      "confidence": 0.8,
+      "risk_levels": {
+        "alzheimers": "Moderate",
+        "dementia": "Mild Concern",
+        "parkinsons": "Low"
+      },
+      "attention_variability_index": 0.22,
+      "anomaly_alert": "mild_variance",
+      "disclaimer": "Synthetic demonstration data. Screening indicators only, not a clinical diagnosis."
+    },
+    {
+      "timestamp": "2026-02-24T10:00:00Z",
+      "createdAt": "2026-02-24T10:00:00Z",
+      "speech_score": 68.0,
+      "memory_score": 56.0,
+      "reaction_score": 60.0,
+      "executive_score": 66.0,
+      "motor_score": 75.0,
+      "composite_risk_score": 41.5,
+      "hybrid_risk": 43.0,
+      "confidence": 0.79,
+      "risk_levels": {
+        "alzheimers": "Moderate",
+        "dementia": "Moderate",
+        "parkinsons": "Low"
+      },
+      "attention_variability_index": 0.28,
+      "anomaly_alert": "significant_drift",
+      "anomaly_details": {
+        "detected": true,
+        "metric": "attention_variability",
+        "drift_percentage": "+19.4%",
+        "baseline_mean_rt": "285ms",
+        "current_mean_rt": "341ms",
+        "explanation": "Reaction time variability drifted +19.4% above personal 4-week moving baseline, combined with word-recall latency. Flags candidate for clinician review."
+      },
+      "feature_importance": [
+        {
+          "feature": "word_recall_accuracy",
+          "importance": 0.38
+        },
+        {
+          "feature": "speech_hesitation_ratio",
+          "importance": 0.26
+        },
+        {
+          "feature": "reaction_time_variability",
+          "importance": 0.21
+        },
+        {
+          "feature": "stroop_interference",
+          "importance": 0.15
+        }
+      ],
+      "recommend_retest": false,
+      "disclaimer": "Synthetic demonstration data. Screening indicators only, not a clinical diagnosis."
+    }
+  ]
+}
