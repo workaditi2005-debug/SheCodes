@@ -69,6 +69,14 @@ class UserProfileUpdate(BaseModel):
     age: Optional[int] = Field(default=None, ge=1, le=120)
     gender: Optional[str] = Field(default=None, max_length=50)
     phone: Optional[str] = Field(default=None, max_length=30)
+    license_number: Optional[str] = Field(default=None, max_length=50)
+    specialization: Optional[str] = Field(default=None, max_length=100)
+    hospital: Optional[str] = Field(default=None, max_length=150)
+    location: Optional[str] = Field(default=None, max_length=150)
+    years_experience: Optional[int] = Field(default=None, ge=0, le=70)
+    consultation_mode: Optional[str] = Field(default=None, max_length=50)
+    bio: Optional[str] = Field(default=None, max_length=500)
+    max_patients: Optional[int] = Field(default=None, ge=1, le=500)
 
 
 class ExtendedProfileUpdate(BaseModel):

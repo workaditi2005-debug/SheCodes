@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { T } from "../utils/theme";
 import { DarkCard, Btn, Stars } from "../components/RiskDashboard";
-import { saveSession, getUser, firebaseOnboard, fetchMe } from "../services/api";
+import { saveSession, getUser, firebaseOnboard, fetchMe, updateProfile } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import LanguageSelector from "../components/common/LanguageSelector";
 
@@ -43,20 +43,95 @@ export default function LoginPage({ setView, setRole, setCurrentUser, onAuthSucc
     const emailRe = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRe.test(email.trim())) return setError("Please enter a valid email address.");
 
+    // ── DOCTOR REGISTRATION: STEP 1 (Account Details) ──────────────────────────
+    if (isDoctorRegister && step === 1) {
+      if (!fullName.trim()) return setError("Full name is required.");
+      if (password.length < 6) return setError("Password must be at least 6 characters.");
+      if (!license.trim()) return setError("Medical license number is required.");
+      if (!specialization) return setError("Please select a specialization.");
+
+      setLoading(true);
+      try {
+        // 1. Firebase Authentication: Create user (or sign in if already created)
+        let fbUser = null;
+        let idToken = null;
+        try {
+          const cred = await signUpWithEmail(email.trim(), password);
+          fbUser = cred.user;
+          idToken = await fbUser.getIdToken();
+        } catch (authErr) {
+          if (authErr.message?.includes("already exists") || authErr.code === "auth/email-already-in-use") {
+            const cred = await signInWithEmail(email.trim(), password);
+            fbUser = cred.user;
+            idToken = await fbUser.getIdToken();
+          } else {
+            throw authErr;
+          }
+        }
+
+        // 2. Onboard verified doctor profile with FastAPI backend
+        const doctorMetadata = {
+          full_name: fullName.trim(),
+          role: "doctor",
+          license_number: license.trim(),
+          specialization: specialization,
+          years_experience: yearsExp ? parseInt(yearsExp) : undefined,
+          max_patients: 10,
+        };
+
+        const onboardRes = await firebaseOnboard(doctorMetadata, idToken);
+        const registeredDoc = onboardRes.user;
+        saveSession(idToken, registeredDoc);
+
+        // 3. Advance to Clinic Info step
+        setStep(2);
+      } catch (err) {
+        console.error("[Doctor Registration Step 1 Error]:", err);
+        setError(err.message || "Failed to complete account registration. Please check your connection and try again.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // ── DOCTOR REGISTRATION: STEP 2 (Clinic Info) ──────────────────────────────
+    if (isDoctorRegister && step === 2) {
+      if (!hospital.trim()) return setError("Hospital / clinic name is required.");
+
+      setLoading(true);
+      try {
+        const idToken = (await fbUser?.getIdToken?.()) || sessionStorage.getItem("neuroaid_token");
+        const clinicData = {
+          hospital: hospital.trim(),
+          location: location.trim() || undefined,
+          consultation_mode: consultMode || "Both",
+          bio: bio.trim() || undefined,
+        };
+
+        const updatedRes = await updateProfile(clinicData, idToken);
+        const currentDoc = updatedRes.user || { ...getUser(), ...clinicData };
+        saveSession(idToken, currentDoc);
+
+        if (onAuthSuccess) {
+          onAuthSuccess(currentDoc, "doctor", true);
+        } else {
+          if (setCurrentUser) setCurrentUser(currentDoc);
+          setRole("doctor");
+          setView("doctor-dashboard");
+        }
+      } catch (err) {
+        console.error("[Doctor Registration Step 2 Error]:", err);
+        setError(err.message || "Failed to save clinic information. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // ── STANDARD REGISTRATION (Patient / Caregiver) ───────────────────────────
     if (tab === "register") {
       if (!fullName.trim()) return setError("Full name is required.");
       if (password.length < 6) return setError("Password must be at least 6 characters.");
-
-      if (mode === "doctor") {
-        if (step === 1) {
-          if (!license.trim()) return setError("Medical license number is required.");
-          if (!specialization) return setError("Please select a specialization.");
-          setStep(2);
-          return;
-        }
-        // step 2 - hospital, location, bio
-        if (!hospital.trim()) return setError("Hospital / clinic name is required.");
-      }
     }
 
     setLoading(true);
@@ -93,24 +168,15 @@ export default function LoginPage({ setView, setRole, setCurrentUser, onAuthSucc
           setView(mode === "doctor" ? "doctor-dashboard" : mode === "caregiver" ? "caregiver-dashboard" : "dashboard");
         }
       } else {
-        // ── 1. Real Firebase Registration ────────────────────────────────────
+        // ── Standard Patient/Caregiver Registration ──────────────────────────
         const userCredential = await signUpWithEmail(email.trim(), password);
         const fbUser = userCredential.user;
         const idToken = await fbUser.getIdToken();
 
-        // ── 2. Authenticated Firebase Onboard to FastAPI (Real Token, No Fake Passwords) ─
         const registrationMetadata = {
           full_name: fullName.trim(),
           role: backendRole,
           age: age ? parseInt(age) : undefined,
-          license_number: license.trim() || undefined,
-          specialization: specialization || undefined,
-          hospital: hospital.trim() || undefined,
-          location: location.trim() || undefined,
-          years_experience: yearsExp ? parseInt(yearsExp) : undefined,
-          consultation_mode: consultMode || undefined,
-          bio: bio.trim() || undefined,
-          max_patients: 10,
         };
 
         const onboardRes = await firebaseOnboard(registrationMetadata, idToken);
@@ -123,10 +189,11 @@ export default function LoginPage({ setView, setRole, setCurrentUser, onAuthSucc
         } else {
           if (setCurrentUser) setCurrentUser(registeredUser);
           setRole(mode);
-          setView(mode === "doctor" ? "doctor-dashboard" : mode === "caregiver" ? "caregiver-dashboard" : "dashboard");
+          setView(mode === "caregiver" ? "caregiver-dashboard" : "dashboard");
         }
       }
     } catch (err) {
+      console.error("[Login/Register Error]:", err);
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);

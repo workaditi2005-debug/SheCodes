@@ -3,7 +3,7 @@ import { injectStyles } from "./utils/theme";
 import { Shell } from "./components/RiskDashboard";
 import { AssessmentProvider } from "./context/AssessmentContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { getUser, isLoggedIn, logout } from "./services/api";
+import { getUser, isLoggedIn, logout, clearSession } from "./services/api";
 import OfflineStatusIndicator from "./components/common/OfflineStatusIndicator";
 import { LanguageProvider } from "./i18n/LanguageContext";
 import LanguageSelector from "./components/common/LanguageSelector";

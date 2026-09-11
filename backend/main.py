@@ -75,6 +75,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # ── Health check ──────────────────────────────────────────────────────────────
 @app.get("/health")
+@app.get("/api/health")
 def health():
     return {
         "status": "ok",

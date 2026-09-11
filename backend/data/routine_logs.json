@@ -236,5 +236,43 @@
     "date": "2026-09-11",
     "timestamp": "2026-09-11T17:30:42+00:00",
     "client_action_id": null
+  },
+  {
+    "id": "206fa741-fbb1-4a0f-9bb0-9c967433bd79",
+    "user_id": "test_patient_p3",
+    "type": "hydration",
+    "glasses": 2,
+    "date": "2026-09-11",
+    "timestamp": "2026-09-11T18:24:22+00:00"
+  },
+  {
+    "id": "5f268d46-d366-4a98-9d56-d65e9ceb9164",
+    "user_id": "test_patient_p3",
+    "type": "adherence",
+    "category": "medicine",
+    "title": "Morning Blood Pressure Pill",
+    "status": "completed",
+    "date": "2026-09-11",
+    "timestamp": "2026-09-11T18:24:22+00:00",
+    "client_action_id": null
+  },
+  {
+    "id": "093e8194-c995-4c75-b2ed-39b13089220f",
+    "user_id": "test_patient_p3",
+    "type": "hydration",
+    "glasses": 2,
+    "date": "2026-09-11",
+    "timestamp": "2026-09-11T18:39:16+00:00"
+  },
+  {
+    "id": "5c4fc393-23b8-473a-a0e3-ef5841a11bf5",
+    "user_id": "test_patient_p3",
+    "type": "adherence",
+    "category": "medicine",
+    "title": "Morning Blood Pressure Pill",
+    "status": "completed",
+    "date": "2026-09-11",
+    "timestamp": "2026-09-11T18:39:16+00:00",
+    "client_action_id": null
   }
 ]

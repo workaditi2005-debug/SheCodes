@@ -1,1 +1,156 @@
-[]
+[
+  {
+    "id": "0bf36208-a353-4944-aed6-88f783dd12fa",
+    "sender_id": "128b5c56-3b50-47dd-90f4-b60da4d43523",
+    "sender_name": "Bob Patient",
+    "sender_role": "patient",
+    "recipient_id": "b31343a7-410c-4a28-9550-4427849cebb6",
+    "text": "New Patient Connection Request: Bob Patient (bob.patient@example.com) has requested you as their supervising neurologist.",
+    "timestamp": "2026-09-11T18:24:11+00:00",
+    "deleted_by": [],
+    "type": "enrollment_request"
+  },
+  {
+    "id": "0e072816-8ffd-410c-a0aa-97e941f87831",
+    "sender_id": "b31343a7-410c-4a28-9550-4427849cebb6",
+    "sender_name": "Dr. Alice Smith",
+    "sender_role": "doctor",
+    "recipient_id": "128b5c56-3b50-47dd-90f4-b60da4d43523",
+    "text": "Your enrollment request has been approved by Dr. Dr. Alice Smith.",
+    "timestamp": "2026-09-11T18:24:11+00:00",
+    "deleted_by": [],
+    "type": "enrollment_response"
+  },
+  {
+    "id": "964ab563-48a1-409c-ad44-6fc496171e50",
+    "sender_id": "270dc5a1-b0c2-4bc9-9277-2d341a152c5c",
+    "sender_name": "Bob Patient",
+    "sender_role": "patient",
+    "recipient_id": "a66e6546-1db2-4f71-9055-7a32e0bb13cd",
+    "text": "New Patient Connection Request: Bob Patient (bob.patient@example.com) has requested you as their supervising neurologist.",
+    "timestamp": "2026-09-11T18:24:12+00:00",
+    "deleted_by": [],
+    "type": "enrollment_request"
+  },
+  {
+    "id": "53c62988-2711-47ab-a3ad-00d39774211e",
+    "sender_id": "a66e6546-1db2-4f71-9055-7a32e0bb13cd",
+    "sender_name": "Dr. Alice Smith",
+    "sender_role": "doctor",
+    "recipient_id": "270dc5a1-b0c2-4bc9-9277-2d341a152c5c",
+    "text": "Your enrollment request has been rejected by Dr. Dr. Alice Smith.",
+    "timestamp": "2026-09-11T18:24:12+00:00",
+    "deleted_by": [],
+    "type": "enrollment_response"
+  },
+  {
+    "id": "b9488014-d3db-4dff-bcb4-4766b2cc3d0c",
+    "sender_id": "aca2c12f-d10b-4eb1-a951-e97f815d0a4d",
+    "sender_name": "Bob Patient",
+    "sender_role": "patient",
+    "recipient_id": "1bf09bbb-3838-4f93-9b51-9428039340a5",
+    "text": "New Patient Connection Request: Bob Patient (bob.patient@example.com) has requested you as their supervising neurologist.",
+    "timestamp": "2026-09-11T18:24:13+00:00",
+    "deleted_by": [],
+    "type": "enrollment_request"
+  },
+  {
+    "id": "83db01dd-7846-4029-b1ca-0fd530c25af5",
+    "sender_id": "2993b490-40c1-4875-9d93-d1273ddf258f",
+    "sender_name": "Bob Patient",
+    "sender_role": "patient",
+    "recipient_id": "42b18973-ebb9-4b91-9b64-75a94da3753d",
+    "text": "New Patient Connection Request: Bob Patient (bob.patient@example.com) has requested you as their supervising neurologist.",
+    "timestamp": "2026-09-11T18:24:14+00:00",
+    "deleted_by": [],
+    "type": "enrollment_request"
+  },
+  {
+    "id": "d5e3eb1b-a1a5-4f83-bd8a-1274ad056901",
+    "sender_id": "9c8e69a4-f09c-4f1a-bf7b-a12c1b6881d3",
+    "sender_name": "Bob Patient",
+    "sender_role": "patient",
+    "recipient_id": "73366ef6-3ea5-4a09-9b89-8879e3f8f59d",
+    "text": "New Patient Connection Request: Bob Patient (bob.patient@example.com) has requested you as their supervising neurologist.",
+    "timestamp": "2026-09-11T18:24:16+00:00",
+    "deleted_by": [],
+    "type": "enrollment_request"
+  },
+  {
+    "id": "1940baa9-2494-425d-8e04-b9672bd23eb3",
+    "sender_id": "e887e298-e584-496d-89af-4182a89a4133",
+    "sender_name": "Bob Patient",
+    "sender_role": "patient",
+    "recipient_id": "4aa4fba3-3931-4bc8-90c6-4c475974ae9e",
+    "text": "New Patient Connection Request: Bob Patient (bob.patient@example.com) has requested you as their supervising neurologist.",
+    "timestamp": "2026-09-11T18:39:04+00:00",
+    "deleted_by": [],
+    "type": "enrollment_request"
+  },
+  {
+    "id": "0fdc5073-b8af-4370-8b2a-57d4e7c8fe68",
+    "sender_id": "4aa4fba3-3931-4bc8-90c6-4c475974ae9e",
+    "sender_name": "Dr. Alice Smith",
+    "sender_role": "doctor",
+    "recipient_id": "e887e298-e584-496d-89af-4182a89a4133",
+    "text": "Your enrollment request has been approved by Dr. Dr. Alice Smith.",
+    "timestamp": "2026-09-11T18:39:04+00:00",
+    "deleted_by": [],
+    "type": "enrollment_response"
+  },
+  {
+    "id": "2a3c806d-017f-4e49-9bd3-1895ba57788f",
+    "sender_id": "5f42a8c3-ae28-4c36-a592-6430a4bbc22e",
+    "sender_name": "Bob Patient",
+    "sender_role": "patient",
+    "recipient_id": "c9f960b1-b068-4b9f-8e94-2cb33d553b31",
+    "text": "New Patient Connection Request: Bob Patient (bob.patient@example.com) has requested you as their supervising neurologist.",
+    "timestamp": "2026-09-11T18:39:05+00:00",
+    "deleted_by": [],
+    "type": "enrollment_request"
+  },
+  {
+    "id": "3e444831-1e76-42bd-9efa-8f94b486343c",
+    "sender_id": "c9f960b1-b068-4b9f-8e94-2cb33d553b31",
+    "sender_name": "Dr. Alice Smith",
+    "sender_role": "doctor",
+    "recipient_id": "5f42a8c3-ae28-4c36-a592-6430a4bbc22e",
+    "text": "Your enrollment request has been rejected by Dr. Dr. Alice Smith.",
+    "timestamp": "2026-09-11T18:39:05+00:00",
+    "deleted_by": [],
+    "type": "enrollment_response"
+  },
+  {
+    "id": "13aed903-a600-49bd-a98f-ea2eaa7d5c2a",
+    "sender_id": "1bdba5f2-7c6c-466f-ab54-3564b5ca1420",
+    "sender_name": "Bob Patient",
+    "sender_role": "patient",
+    "recipient_id": "68a4644a-589d-456d-baeb-c3a8978c3fab",
+    "text": "New Patient Connection Request: Bob Patient (bob.patient@example.com) has requested you as their supervising neurologist.",
+    "timestamp": "2026-09-11T18:39:06+00:00",
+    "deleted_by": [],
+    "type": "enrollment_request"
+  },
+  {
+    "id": "52ca9a0b-6235-4d7a-aa5d-1c4eb3fe39d3",
+    "sender_id": "d6a969bc-f42d-43c1-a65e-150740db2fe7",
+    "sender_name": "Bob Patient",
+    "sender_role": "patient",
+    "recipient_id": "78dbf672-e48d-45a4-b47e-9b759b334e12",
+    "text": "New Patient Connection Request: Bob Patient (bob.patient@example.com) has requested you as their supervising neurologist.",
+    "timestamp": "2026-09-11T18:39:08+00:00",
+    "deleted_by": [],
+    "type": "enrollment_request"
+  },
+  {
+    "id": "6861c6af-0d7b-49ec-a4fb-41c62aeb1a40",
+    "sender_id": "5584f0c5-a31a-4f04-955c-3536d79b52c0",
+    "sender_name": "Bob Patient",
+    "sender_role": "patient",
+    "recipient_id": "b3a731c2-f66b-4cb8-9781-30806502d6bb",
+    "text": "New Patient Connection Request: Bob Patient (bob.patient@example.com) has requested you as their supervising neurologist.",
+    "timestamp": "2026-09-11T18:39:09+00:00",
+    "deleted_by": [],
+    "type": "enrollment_request"
+  }
+]

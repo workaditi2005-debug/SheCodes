@@ -198,11 +198,14 @@ export function Sidebar({ role, page, setPage, setView, onLogout, isMobile = fal
   const initials = displayName.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
   const [unread, setUnread] = useState(0);
   useEffect(() => {
+    let iv = null;
     import("../services/api").then(({ getUnreadCount }) => {
       getUnreadCount().then(n => setUnread(n || 0)).catch(() => {});
-      const iv = setInterval(() => getUnreadCount().then(n => setUnread(n||0)).catch(()=>{}), 8000);
-      return () => clearInterval(iv);
+      iv = setInterval(() => getUnreadCount().then(n => setUnread(n || 0)).catch(() => {}), 15000);
     });
+    return () => {
+      if (iv) clearInterval(iv);
+    };
   }, []);
 
   const uNav = [

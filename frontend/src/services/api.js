@@ -42,6 +42,20 @@ export async function getFirebaseIdToken(forceRefresh = false) {
 }
 
 
+// ── Structured API Error Class ───────────────────────────────────────────────
+export class ApiError extends Error {
+  constructor(message, { type = "UnknownError", status = 0, endpoint = "", method = "GET", detail = "", originalError = null } = {}) {
+    super(message);
+    this.name = "ApiError";
+    this.type = type; // "NetworkError" | "AuthError" | "ForbiddenError" | "NotFoundError" | "ValidationError" | "ServerError" | "HttpError"
+    this.status = status;
+    this.endpoint = endpoint;
+    this.method = method;
+    this.detail = detail;
+    this.originalError = originalError;
+  }
+}
+
 // ── Core request ──────────────────────────────────────────────────────────────
 async function request(method, path, body, requiresAuth = false) {
   const headers = { "Content-Type": "application/json" };
@@ -54,9 +68,18 @@ async function request(method, path, body, requiresAuth = false) {
       authToken = getToken();
     }
 
-    if (!authToken) throw new Error("Not authenticated. Please log in.");
+    if (!authToken) {
+      console.warn(`[API Auth] ${method} ${path} blocked: No authentication token found.`);
+      throw new ApiError("Authentication required. Please sign in.", {
+        type: "AuthError",
+        status: 401,
+        endpoint: path,
+        method,
+      });
+    }
     headers["Authorization"] = `Bearer ${authToken}`;
   }
+
   let res;
   try {
     res = await fetch(`${BASE}${path}`, {
@@ -65,27 +88,97 @@ async function request(method, path, body, requiresAuth = false) {
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch (networkErr) {
-    throw new Error(`Network connection failed (${networkErr.message || "Failed to fetch"}). Please check that the server is running.`);
+    console.error(`[API NetworkError] ${method} ${path} failed:`, networkErr.message);
+    throw new ApiError(
+      "Unable to connect to NeuroAid servers. Please check that the backend server is running and try again.",
+      {
+        type: "NetworkError",
+        status: 0,
+        endpoint: path,
+        method,
+        originalError: networkErr,
+      }
+    );
   }
 
   if (!res.ok) {
     let detail = "";
+    let errBody = null;
     try {
-      const err = await res.json();
-      detail = err?.detail || "";
-    } catch {}
+      errBody = await res.json();
+      detail = errBody?.detail || "";
+    } catch {
+      detail = res.statusText || "";
+    }
 
-    if (res.status === 401 && requiresAuth) {
-      clearSession();
-      throw new Error(detail || "Session expired or unauthorized. Please log in again.");
+    if (res.status === 401) {
+      console.warn(`[API 401 Unauthorized] ${method} ${path}:`, detail);
+      if (requiresAuth && path !== "/messages/unread/count") {
+        clearSession();
+      }
+      throw new ApiError(detail || "Session expired or unauthorized. Please sign in again.", {
+        type: "AuthError",
+        status: 401,
+        endpoint: path,
+        method,
+        detail,
+      });
     }
+
     if (res.status === 403) {
-      throw new Error(detail || "Access denied: Doctor privileges required.");
+      console.warn(`[API 403 Forbidden] ${method} ${path}:`, detail);
+      throw new ApiError(detail || "Access denied: Required privileges missing.", {
+        type: "ForbiddenError",
+        status: 403,
+        endpoint: path,
+        method,
+        detail,
+      });
     }
+
     if (res.status === 404) {
-      throw new Error(detail || "Requested resource not found.");
+      console.warn(`[API 404 NotFound] ${method} ${path}:`, detail);
+      throw new ApiError(detail || "Requested resource not found.", {
+        type: "NotFoundError",
+        status: 404,
+        endpoint: path,
+        method,
+        detail,
+      });
     }
-    throw new Error(detail || `API error (${res.status}): ${res.statusText || "Request failed"}`);
+
+    if (res.status === 422) {
+      console.error(`[API 422 ValidationError] ${method} ${path}:`, errBody);
+      const valDetail = Array.isArray(errBody?.detail)
+        ? errBody.detail.map(d => `${d.loc?.slice(1)?.join('.') || 'field'}: ${d.msg}`).join("; ")
+        : (detail || "Invalid request payload.");
+      throw new ApiError(valDetail, {
+        type: "ValidationError",
+        status: 422,
+        endpoint: path,
+        method,
+        detail: valDetail,
+      });
+    }
+
+    if (res.status >= 500) {
+      console.error(`[API ${res.status} ServerError] ${method} ${path}:`, detail);
+      throw new ApiError(detail || "An internal server error occurred. Please try again later.", {
+        type: "ServerError",
+        status: res.status,
+        endpoint: path,
+        method,
+        detail,
+      });
+    }
+
+    throw new ApiError(detail || `API error (${res.status}): ${res.statusText || "Request failed"}`, {
+      type: "HttpError",
+      status: res.status,
+      endpoint: path,
+      method,
+      detail,
+    });
   }
 
   try {
@@ -99,20 +192,83 @@ async function request(method, path, body, requiresAuth = false) {
 
 /** Onboard or link a Firebase-authenticated user using real Firebase ID token */
 export async function firebaseOnboard(profileData, idToken) {
-  const res = await fetch(`${BASE}/auth/firebase-onboard`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${idToken}`,
-    },
-    body: JSON.stringify(profileData),
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE}/auth/firebase-onboard`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${idToken}`,
+      },
+      body: JSON.stringify(profileData),
+    });
+  } catch (networkErr) {
+    console.error(`[API NetworkError] POST /auth/firebase-onboard failed:`, networkErr);
+    throw new ApiError(
+      "Unable to connect to NeuroAid servers. Please verify that the server is running and try again.",
+      {
+        type: "NetworkError",
+        status: 0,
+        endpoint: "/auth/firebase-onboard",
+        method: "POST",
+        originalError: networkErr,
+      }
+    );
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `Onboarding error ${res.status}`);
+    const detail = err?.detail || `Onboarding error (${res.status})`;
+    console.warn(`[API ${res.status} OnboardError]:`, detail);
+    throw new ApiError(detail, {
+      type: res.status === 401 ? "AuthError" : res.status === 403 ? "ForbiddenError" : res.status === 422 ? "ValidationError" : "HttpError",
+      status: res.status,
+      endpoint: "/auth/firebase-onboard",
+      method: "POST",
+      detail,
+    });
   }
+
   const data = await res.json();
   saveSession(idToken, data.user);
+  return data;
+}
+
+/** Update authenticated user profile (basic fields & doctor clinic info) */
+export async function updateProfile(updates, explicitToken = null) {
+  const headers = { "Content-Type": "application/json" };
+  const token = explicitToken || (await getFirebaseIdToken()) || getToken();
+  if (!token) throw new ApiError("Not authenticated.", { type: "AuthError", status: 401 });
+  headers["Authorization"] = `Bearer ${token}`;
+
+  let res;
+  try {
+    res = await fetch(`${BASE}/auth/me`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(updates),
+    });
+  } catch (networkErr) {
+    console.error(`[API NetworkError] PUT /auth/me failed:`, networkErr);
+    throw new ApiError(
+      "Unable to connect to NeuroAid servers. Please check your connection.",
+      { type: "NetworkError", status: 0, endpoint: "/auth/me", method: "PUT", originalError: networkErr }
+    );
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new ApiError(err?.detail || `Profile update error (${res.status})`, {
+      status: res.status,
+      endpoint: "/auth/me",
+      method: "PUT",
+    });
+  }
+
+  const data = await res.json();
+  if (data?.user) {
+    sessionStorage.setItem("neuroaid_user", JSON.stringify(data.user));
+  }
   return data;
 }
 
@@ -145,13 +301,28 @@ export async function logout() {
 export async function fetchMe(explicitToken = null) {
   const headers = { "Content-Type": "application/json" };
   const token = explicitToken || (await getFirebaseIdToken()) || getToken();
-  if (!token) throw new Error("Not authenticated.");
+  if (!token) throw new ApiError("Not authenticated.", { type: "AuthError", status: 401 });
   headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE}/auth/me`, { method: "GET", headers });
+  let res;
+  try {
+    res = await fetch(`${BASE}/auth/me`, { method: "GET", headers });
+  } catch (networkErr) {
+    console.error(`[API NetworkError] GET /auth/me failed:`, networkErr);
+    throw new ApiError(
+      "Unable to connect to NeuroAid servers. Please check that the server is running.",
+      { type: "NetworkError", status: 0, endpoint: "/auth/me", method: "GET", originalError: networkErr }
+    );
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `Failed to fetch profile (${res.status})`);
+    throw new ApiError(err?.detail || `Failed to fetch profile (${res.status})`, {
+      type: res.status === 401 ? "AuthError" : "HttpError",
+      status: res.status,
+      endpoint: "/auth/me",
+      method: "GET",
+    });
   }
   const data = await res.json();
   sessionStorage.setItem("neuroaid_user", JSON.stringify(data.user));
@@ -208,8 +379,14 @@ export async function getConversations() {
   return data.conversations;
 }
 export async function getUnreadCount() {
-  const data = await request("GET", "/messages/unread/count", null, true);
-  return data.count;
+  const token = (await getFirebaseIdToken()) || getToken();
+  if (!token) return 0;
+  try {
+    const data = await request("GET", "/messages/unread/count", null, true);
+    return data?.count || 0;
+  } catch {
+    return 0;
+  }
 }
 
 export async function getDoctors() {

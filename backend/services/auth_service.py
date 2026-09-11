@@ -454,7 +454,20 @@ def update_basic_profile(user_id: str, updates: Dict[str, Any]) -> Dict[str, Any
     if user_id not in users:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    allowed = {"full_name", "age", "gender", "phone"}
+    allowed = {
+        "full_name",
+        "age",
+        "gender",
+        "phone",
+        "license_number",
+        "specialization",
+        "hospital",
+        "location",
+        "years_experience",
+        "consultation_mode",
+        "bio",
+        "max_patients",
+    }
     for key, value in updates.items():
         if key in allowed and value is not None:
             users[user_id][key] = value
@@ -798,6 +811,15 @@ def create_or_link_firebase_profile(authorization: str, payload: Any) -> Dict[st
     # 1. Check if user already exists with this firebase_uid
     for uid, existing in users.items():
         if existing.get("firebase_uid") == firebase_uid:
+            updated = False
+            for field in ("hospital", "location", "consultation_mode", "bio", "years_experience", "specialization", "license_number", "phone"):
+                val = getattr(payload, field, None)
+                if val is not None and str(val).strip():
+                    existing[field] = val
+                    updated = True
+            if updated:
+                users[uid] = existing
+                users_store.write(users)
             return {"message": "Profile already exists.", "user": safe_user(existing)}
 
     # 2. Check if user exists by verified email and link
@@ -805,6 +827,10 @@ def create_or_link_firebase_profile(authorization: str, payload: Any) -> Dict[st
         for uid, existing in users.items():
             if existing.get("email", "").strip().lower() == email:
                 existing["firebase_uid"] = firebase_uid
+                for field in ("hospital", "location", "consultation_mode", "bio", "years_experience", "specialization", "license_number", "phone"):
+                    val = getattr(payload, field, None)
+                    if val is not None and str(val).strip():
+                        existing[field] = val
                 users[uid] = existing
                 users_store.write(users)
                 record(
