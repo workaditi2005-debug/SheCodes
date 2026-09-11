@@ -3809,5 +3809,59 @@
     "metadata": {
       "role": "patient"
     }
+  },
+  {
+    "id": "9b4a2c21-b6af-4800-bb00-0c6282b6c8d2",
+    "timestamp": "2026-09-11T05:03:25+00:00",
+    "event": "demo.seeded",
+    "actor_id": "sih_system",
+    "actor_role": "guest",
+    "subject_id": null,
+    "outcome": "success",
+    "client_ip": null,
+    "metadata": {
+      "patient_id": "sih-demo-patient-001",
+      "doctor_id": "sih-demo-doctor-001"
+    }
+  },
+  {
+    "id": "ede2dc12-6363-4aca-a470-2d99295c00f0",
+    "timestamp": "2026-09-11T05:05:08+00:00",
+    "event": "auth.forbidden",
+    "actor_id": "user-p-72620f",
+    "actor_role": "patient",
+    "subject_id": null,
+    "outcome": "forbidden",
+    "client_ip": null,
+    "metadata": {
+      "required_role": "care_team"
+    }
+  },
+  {
+    "id": "4a6ae6b0-7a18-45b3-a88d-fd1171ce9bfc",
+    "timestamp": "2026-09-11T05:05:08+00:00",
+    "event": "auth.forbidden",
+    "actor_id": "user-cg-1935be",
+    "actor_role": "caregiver",
+    "subject_id": null,
+    "outcome": "forbidden",
+    "client_ip": null,
+    "metadata": {
+      "required_role": "doctor"
+    }
+  },
+  {
+    "id": "252161a6-90f3-4cf6-b487-8fede79d4a99",
+    "timestamp": "2026-09-11T05:05:11+00:00",
+    "event": "demo.seeded",
+    "actor_id": "sih_system",
+    "actor_role": "guest",
+    "subject_id": null,
+    "outcome": "success",
+    "client_ip": null,
+    "metadata": {
+      "patient_id": "sih-demo-patient-001",
+      "doctor_id": "sih-demo-doctor-001"
+    }
   }
 ]

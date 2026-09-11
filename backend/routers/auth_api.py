@@ -36,6 +36,22 @@ class RegisterRequest(BaseModel):
     max_patients: Optional[int] = Field(default=10, ge=1, le=500)
 
 
+class FirebaseOnboardRequest(BaseModel):
+    full_name: str = Field(..., min_length=2, max_length=100)
+    role: str = Field(default="patient")
+    age: Optional[int] = Field(default=None, ge=1, le=120)
+    gender: Optional[str] = Field(default=None, max_length=50)
+    phone: Optional[str] = Field(default=None, max_length=30)
+    license_number: Optional[str] = Field(default=None, max_length=50)
+    specialization: Optional[str] = Field(default=None, max_length=100)
+    hospital: Optional[str] = Field(default=None, max_length=150)
+    location: Optional[str] = Field(default=None, max_length=150)
+    years_experience: Optional[int] = Field(default=None, ge=0, le=70)
+    consultation_mode: Optional[str] = Field(default=None, max_length=50)
+    bio: Optional[str] = Field(default=None, max_length=500)
+    max_patients: Optional[int] = Field(default=10, ge=1, le=500)
+
+
 class LoginRequest(BaseModel):
     email: str = Field(..., min_length=5, max_length=150)
     password: str = Field(..., min_length=1, max_length=128)
@@ -74,6 +90,18 @@ class ExtendedProfileUpdate(BaseModel):
     existingDiagnosis: Optional[str] = Field(default=None, max_length=200)
     cognitiveComplaints: Optional[List[str]] = None
     baselineTestDate: Optional[str] = Field(default=None, max_length=50)
+
+
+@router.post("/firebase-onboard")
+def firebase_onboard(
+    body: FirebaseOnboardRequest,
+    authorization: str = Header(...),
+) -> Dict[str, Any]:
+    """
+    Onboard or link a Firebase authenticated user using their real Firebase ID token.
+    Extracts verified UID, verifies project ID, and maps to an internal NeuroAid profile.
+    """
+    return auth_service.create_or_link_firebase_profile(authorization, body)
 
 
 @router.post("/register", response_model=AuthResponse)

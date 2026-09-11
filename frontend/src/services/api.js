@@ -40,9 +40,16 @@ export async function getFirebaseIdToken(forceRefresh = false) {
 async function request(method, path, body, requiresAuth = false) {
   const headers = { "Content-Type": "application/json" };
   if (requiresAuth) {
-    const token = getToken();
-    if (!token) throw new Error("Not authenticated. Please log in.");
-    headers["Authorization"] = `Bearer ${token}`;
+    // 1. Prefer active Firebase ID token for real Firebase-authenticated users
+    let authToken = await getFirebaseIdToken();
+
+    // 2. Fall back to stored token (for deterministic SIH demo mode or temporary migration)
+    if (!authToken) {
+      authToken = getToken();
+    }
+
+    if (!authToken) throw new Error("Not authenticated. Please log in.");
+    headers["Authorization"] = `Bearer ${authToken}`;
   }
   const res = await fetch(`${BASE}${path}`, {
     method,
@@ -61,14 +68,33 @@ async function request(method, path, body, requiresAuth = false) {
 
 // ── Auth API ──────────────────────────────────────────────────────────────────
 
-/** Register a new user. role = "patient" | "doctor" | "caregiver" */
+/** Onboard or link a Firebase-authenticated user using real Firebase ID token */
+export async function firebaseOnboard(profileData, idToken) {
+  const res = await fetch(`${BASE}/auth/firebase-onboard`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${idToken}`,
+    },
+    body: JSON.stringify(profileData),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || `Onboarding error ${res.status}`);
+  }
+  const data = await res.json();
+  saveSession(idToken, data.user);
+  return data;
+}
+
+/** Register a new user (legacy endpoint). role = "patient" | "doctor" | "caregiver" */
 export async function register({ full_name, email, password, role, age, gender, phone, license_number, specialization, hospital, location, years_experience, consultation_mode, bio, max_patients }) {
   const data = await request("POST", "/auth/register", { full_name, email, password, role, age, gender, phone, license_number, specialization, hospital, location, years_experience, consultation_mode, bio, max_patients });
   saveSession(data.token, data.user);
   return data;
 }
 
-/** Login. role = "patient" | "doctor" | "caregiver" */
+/** Login (legacy endpoint). role = "patient" | "doctor" | "caregiver" */
 export async function login(email, password, role = "patient") {
   const data = await request("POST", "/auth/login", { email, password, role });
   saveSession(data.token, data.user);
@@ -80,9 +106,19 @@ export async function logout() {
   try { await request("POST", "/auth/logout", null, true); } finally { clearSession(); }
 }
 
-/** Get current user profile. */
-export async function fetchMe() {
-  const data = await request("GET", "/auth/me", null, true);
+/** Get current user profile using current authentication token */
+export async function fetchMe(explicitToken = null) {
+  const headers = { "Content-Type": "application/json" };
+  const token = explicitToken || (await getFirebaseIdToken()) || getToken();
+  if (!token) throw new Error("Not authenticated.");
+  headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE}/auth/me`, { method: "GET", headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || `Failed to fetch profile (${res.status})`);
+  }
+  const data = await res.json();
   sessionStorage.setItem("neuroaid_user", JSON.stringify(data.user));
   return data.user;
 }

@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 
 from core.rbac import Permission, Role, has_permission
+from core import firebase_auth
 from core.security import (
     create_session_token,
     dummy_verify_password,
@@ -119,15 +120,29 @@ def _clear_failed_attempts(email: str) -> None:
 
 def get_user_from_token(token: str) -> Optional[Dict[str, Any]]:
     """
-    Resolve user from session token with cryptographic hash lookup,
-    enforcing absolute session TTL and inactivity timeout.
+    Resolve user from authentication token:
+    1. Isolated SIH deterministic demo mode bypass.
+    2. Real Firebase ID token cryptographic verification & mapping.
+    3. Legacy session token validation (temporary backward compatibility).
     """
     if not token:
         return None
 
+    # 1. Isolated SIH deterministic demo mode
+    if token in firebase_auth.SIH_DEMO_TOKENS:
+        return get_users().get(firebase_auth.SIH_DEMO_TOKENS[token])
+
+    # 2. Check if token is a Firebase ID token (JWT format with 3 segments)
+    if token.count(".") == 2:
+        try:
+            claims = firebase_auth.verify_firebase_id_token(token)
+            return firebase_auth.resolve_user_by_firebase_claims(claims)
+        except Exception:
+            return None
+
+    # 3. Legacy session token validation (temporary backward compatibility)
     sessions = get_sessions()
     token_h = hash_token(token)
-    # Check hashed key first, then fall back to plain token for migration
     session = sessions.get(token_h) or sessions.get(token)
     matched_key = token_h if token_h in sessions else (token if token in sessions else None)
 
@@ -136,21 +151,21 @@ def get_user_from_token(token: str) -> Optional[Dict[str, Any]]:
 
     now = datetime.now(timezone.utc)
 
-    # 1. Enforce absolute session TTL
+    # 3a. Enforce absolute session TTL
     created_at = _parse_iso(session.get("created_at"))
     if created_at and (now - created_at).total_seconds() > settings.session_ttl_seconds:
         del sessions[matched_key]
         sessions_store.write(sessions)
         return None
 
-    # 2. Enforce idle inactivity timeout
+    # 3b. Enforce idle inactivity timeout
     last_active = _parse_iso(session.get("last_active") or session.get("created_at"))
     if last_active and (now - last_active).total_seconds() > settings.session_idle_timeout_seconds:
         del sessions[matched_key]
         sessions_store.write(sessions)
         return None
 
-    # 3. Slide last_active timestamp
+    # 3c. Slide last_active timestamp
     session["last_active"] = utcnow_iso()
     sessions[matched_key] = session
     sessions_store.write(sessions)
@@ -158,11 +173,38 @@ def get_user_from_token(token: str) -> Optional[Dict[str, Any]]:
     return get_users().get(session["user_id"])
 
 
+extract_bearer_token = firebase_auth.extract_bearer_token
+
+
 def require_user(authorization: str) -> Dict[str, Any]:
     token = extract_bearer_token(authorization)
+
+    # 1. Isolated SIH deterministic demo mode
+    if token in firebase_auth.SIH_DEMO_TOKENS:
+        demo_user = get_users().get(firebase_auth.SIH_DEMO_TOKENS[token])
+        if demo_user:
+            return demo_user
+        raise HTTPException(status_code=401, detail="Demo user record not found. Please re-seed demo.")
+
+    # 2. Real Firebase ID token (JWT format with 3 segments)
+    if token.count(".") == 2:
+        claims = firebase_auth.verify_firebase_id_token(token)
+        user = firebase_auth.resolve_user_by_firebase_claims(claims)
+        if not user:
+            raise HTTPException(
+                status_code=401,
+                detail="NeuroAid profile not found for this account. Please complete profile onboarding.",
+            )
+        return user
+
+    # 3. Legacy session tokens (migration fallback)
     user = get_user_from_token(token)
     if not user:
-        raise HTTPException(status_code=401, detail="Unauthorized: Invalid or expired session.")
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized: Invalid or expired authentication credentials.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
 
 
@@ -194,12 +236,6 @@ def require_care_team(authorization: str) -> Dict[str, Any]:
     return user
 
 
-def extract_bearer_token(authorization: Optional[str]) -> str:
-    if not authorization:
-        return ""
-    return authorization.replace("Bearer ", "").strip()
-
-
 def register_user(payload: Any) -> Dict[str, Any]:
     email = payload.email.strip().lower()
     role = payload.role.strip().lower()
@@ -208,6 +244,13 @@ def register_user(payload: Any) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="Please enter a valid email address.")
     if role not in {"patient", "doctor", "caregiver"}:
         raise HTTPException(status_code=400, detail="Role must be 'patient', 'caregiver', or 'doctor'.")
+
+    # Reject placeholder passwords explicitly (Section 8 requirement)
+    if "[FIREBASE" in getattr(payload, "password", "").upper():
+        raise HTTPException(
+            status_code=400,
+            detail="Placeholder credentials rejected. Use authenticated Firebase onboarding via /api/auth/firebase-onboard.",
+        )
 
     # Enforce password strength
     valid_pwd, pwd_msg = validate_password_strength(payload.password)
@@ -546,3 +589,104 @@ def get_my_doctor_payload(patient_id: str) -> Dict[str, Any]:
 def get_pending_requests(doctor_id: str) -> List[Dict[str, Any]]:
     users = get_users()
     return users.get(doctor_id, {}).get("pending_requests", [])
+
+
+def create_or_link_firebase_profile(authorization: str, payload: Any) -> Dict[str, Any]:
+    """
+    Create or link a NeuroAid profile using verified Firebase ID token credentials.
+    Extracts verified UID and email from token.
+    Enforces that Google sign-in accounts cannot arbitrarily claim doctor/admin privileges.
+    """
+    token = firebase_auth.extract_bearer_token(authorization)
+    claims = firebase_auth.verify_firebase_id_token(token)
+
+    firebase_uid = claims.get("uid") or claims.get("sub")
+    if not firebase_uid:
+        raise HTTPException(status_code=401, detail="Invalid Firebase token: Missing UID.")
+
+    email = claims.get("email", "").strip().lower()
+    full_name = getattr(payload, "full_name", "").strip() or claims.get("name", "").strip() or (email.split("@")[0] if email else "User")
+    role = getattr(payload, "role", "patient").strip().lower()
+
+    if role not in {"patient", "doctor", "caregiver"}:
+        raise HTTPException(status_code=400, detail="Role must be 'patient', 'caregiver', or 'doctor'.")
+
+    # Guard: Google users cannot arbitrarily assign doctor/admin privileges
+    sign_in_provider = claims.get("firebase", {}).get("sign_in_provider")
+    if sign_in_provider == "google.com" and role in {"doctor", "admin"}:
+        raise HTTPException(
+            status_code=403,
+            detail="Google accounts cannot register directly as doctors without clinical credential verification.",
+        )
+
+    users = get_users()
+
+    # 1. Check if user already exists with this firebase_uid
+    for uid, existing in users.items():
+        if existing.get("firebase_uid") == firebase_uid:
+            return {"message": "Profile already exists.", "user": safe_user(existing)}
+
+    # 2. Check if user exists by verified email and link
+    if email:
+        for uid, existing in users.items():
+            if existing.get("email", "").strip().lower() == email:
+                existing["firebase_uid"] = firebase_uid
+                users[uid] = existing
+                users_store.write(users)
+                record(
+                    event="auth.firebase_profile_linked",
+                    actor_id=uid,
+                    actor_role=existing.get("role", "patient"),
+                    outcome="success",
+                    metadata={"firebase_uid": firebase_uid, "email": email},
+                )
+                return {"message": "Existing profile linked with Firebase.", "user": safe_user(existing)}
+
+    # Doctor validation
+    if role == "doctor":
+        if not getattr(payload, "license_number", None) or not str(payload.license_number).strip():
+            raise HTTPException(status_code=400, detail="Medical license number is required for doctor accounts.")
+        if not getattr(payload, "specialization", None) or not str(payload.specialization).strip():
+            raise HTTPException(status_code=400, detail="Specialization is required for doctor accounts.")
+
+    user_id = str(uuid.uuid4())
+    now = utcnow_iso()
+    new_user = {
+        "id": user_id,
+        "firebase_uid": firebase_uid,
+        "full_name": full_name,
+        "email": email,
+        "role": role,
+        "age": getattr(payload, "age", None),
+        "gender": getattr(payload, "gender", None),
+        "phone": getattr(payload, "phone", None),
+        "license_number": getattr(payload, "license_number", None) if role == "doctor" else None,
+        "created_at": now,
+        "last_login": now,
+    }
+    if role in {"doctor", "caregiver"}:
+        new_user.update({
+            "specialization": getattr(payload, "specialization", None) if role == "doctor" else "Caregiver",
+            "hospital": getattr(payload, "hospital", None),
+            "location": getattr(payload, "location", None),
+            "years_experience": getattr(payload, "years_experience", None),
+            "consultation_mode": getattr(payload, "consultation_mode", "Both"),
+            "bio": getattr(payload, "bio", None),
+            "max_patients": getattr(payload, "max_patients", 10),
+            "current_patients": 0,
+            "patient_list": [],
+            "pending_requests": [],
+        })
+
+    users[user_id] = new_user
+    users_store.write(users)
+
+    record(
+        event="auth.firebase_profile_created",
+        actor_id=user_id,
+        actor_role=role,
+        outcome="success",
+        metadata={"firebase_uid": firebase_uid, "email": email},
+    )
+
+    return {"message": "Profile created successfully!", "user": safe_user(new_user)}

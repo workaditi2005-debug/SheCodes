@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { T } from "../utils/theme";
 import { DarkCard, Btn, Stars } from "../components/RiskDashboard";
-import { register, saveSession, getUser } from "../services/api";
+import { saveSession, getUser, firebaseOnboard, fetchMe } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
 const LIME = "#C8F135";
@@ -61,51 +61,45 @@ export default function LoginPage({ setView, setRole, setCurrentUser, onAuthSucc
     setLoading(true);
     try {
       if (tab === "login") {
-        // ── 1. Firebase Authentication (real Firebase project) ───────────────
+        // ── 1. Real Firebase Authentication ──────────────────────────────────
         const userCredential = await signInWithEmail(email.trim(), password);
         const fbUser = userCredential.user;
         const idToken = await fbUser.getIdToken();
 
-        // ── 2. Bridge NeuroAid user profile (identity from Firebase) ─────────
+        // ── 2. Retrieve verified NeuroAid profile from FastAPI backend ──────
         let userProfile = null;
         try {
-          const existingUser = getUser();
-          if (existingUser && existingUser.email?.toLowerCase() === fbUser.email?.toLowerCase()) {
-            userProfile = existingUser;
-          }
+          userProfile = await fetchMe(idToken);
         } catch {
-          // fallback
-        }
-
-        if (!userProfile) {
-          userProfile = {
-            id: fbUser.uid,
-            email: fbUser.email,
-            full_name: fbUser.displayName || email.trim().split("@")[0],
-            role: backendRole,
-          };
+          // If profile does not exist yet on backend, onboard using verified identity
+          const onboardRes = await firebaseOnboard(
+            {
+              full_name: fbUser.displayName || email.trim().split("@")[0],
+              role: backendRole,
+            },
+            idToken
+          );
+          userProfile = onboardRes.user;
         }
 
         saveSession(idToken, userProfile);
 
         if (onAuthSuccess) {
-          onAuthSuccess(userProfile, backendRole, false);
+          onAuthSuccess(userProfile, userProfile.role || backendRole, false);
         } else {
           if (setCurrentUser) setCurrentUser(userProfile);
           setRole(mode);
           setView(mode === "doctor" ? "doctor-dashboard" : mode === "caregiver" ? "caregiver-dashboard" : "dashboard");
         }
       } else {
-        // ── 1. Firebase Registration ─────────────────────────────────────────
+        // ── 1. Real Firebase Registration ────────────────────────────────────
         const userCredential = await signUpWithEmail(email.trim(), password);
         const fbUser = userCredential.user;
         const idToken = await fbUser.getIdToken();
 
-        // ── 2. Preserve metadata without transmitting real password to backend ───
+        // ── 2. Authenticated Firebase Onboard to FastAPI (Real Token, No Fake Passwords) ─
         const registrationMetadata = {
-          id: fbUser.uid,
           full_name: fullName.trim(),
-          email: fbUser.email,
           role: backendRole,
           age: age ? parseInt(age) : undefined,
           license_number: license.trim() || undefined,
@@ -118,20 +112,8 @@ export default function LoginPage({ setView, setRole, setCurrentUser, onAuthSucc
           max_patients: 10,
         };
 
-        let registeredUser = registrationMetadata;
-
-        // Bridge clinical metadata into backend database without real password
-        try {
-          const backendResult = await register({
-            ...registrationMetadata,
-            password: "[FIREBASE_MANAGED_AUTH]",
-          });
-          if (backendResult?.user) {
-            registeredUser = backendResult.user;
-          }
-        } catch (backendErr) {
-          console.info("Backend registration bridge note:", backendErr.message);
-        }
+        const onboardRes = await firebaseOnboard(registrationMetadata, idToken);
+        const registeredUser = onboardRes.user;
 
         saveSession(idToken, registeredUser);
 
@@ -158,23 +140,30 @@ export default function LoginPage({ setView, setRole, setCurrentUser, onAuthSucc
       const fbUser = result.user;
       const idToken = await fbUser.getIdToken();
 
-      // First-time users or default Google login assigned patient role (never auto-doctor/admin)
+      // First-time Google accounts default to patient role (never auto-doctor/admin)
       const googleRole = "patient";
       const isFirstTime = Boolean(result._tokenResponse?.isNewUser);
 
-      const googleUser = {
-        id: fbUser.uid,
-        email: fbUser.email,
-        full_name: fbUser.displayName || fbUser.email?.split("@")[0] || "User",
-        role: googleRole,
-      };
+      let userProfile = null;
+      try {
+        userProfile = await fetchMe(idToken);
+      } catch {
+        const onboardRes = await firebaseOnboard(
+          {
+            full_name: fbUser.displayName || fbUser.email?.split("@")[0] || "User",
+            role: googleRole,
+          },
+          idToken
+        );
+        userProfile = onboardRes.user;
+      }
 
-      saveSession(idToken, googleUser);
+      saveSession(idToken, userProfile);
 
       if (onAuthSuccess) {
-        onAuthSuccess(googleUser, "user", isFirstTime);
+        onAuthSuccess(userProfile, "user", isFirstTime);
       } else {
-        if (setCurrentUser) setCurrentUser(googleUser);
+        if (setCurrentUser) setCurrentUser(userProfile);
         setRole("user");
         setView("dashboard");
       }

@@ -35,6 +35,8 @@ class Settings:
     max_login_attempts: int
     lockout_duration_seconds: int
     audit_log_enabled: bool
+    firebase_project_id: str
+    firebase_credentials_path: str | None
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -59,6 +61,8 @@ class Settings:
             max_login_attempts=int(os.getenv("MAX_LOGIN_ATTEMPTS", "5")),
             lockout_duration_seconds=int(os.getenv("LOCKOUT_DURATION_SECONDS", "900")),
             audit_log_enabled=_parse_bool(os.getenv("AUDIT_LOG_ENABLED"), True),
+            firebase_project_id=os.getenv("FIREBASE_PROJECT_ID", "NeuroAid-SIH-2026"),
+            firebase_credentials_path=os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or os.getenv("FIREBASE_CREDENTIALS_PATH"),
         )
 
 
