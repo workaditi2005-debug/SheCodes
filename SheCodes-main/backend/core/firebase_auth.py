@@ -141,6 +141,8 @@ def verify_firebase_id_token(token: str) -> Dict[str, Any]:
         try:
             claims = fb_admin_auth.verify_id_token(token, app=_firebase_app, check_revoked=False)
             _validate_claims_project(claims, expected_project)
+            if "uid" not in claims:
+                claims["uid"] = claims.get("user_id") or claims.get("sub")
             return claims
         except fb_admin_auth.ExpiredIdTokenError:
             raise HTTPException(status_code=401, detail="Authentication token has expired. Please sign in again.")
@@ -165,6 +167,8 @@ def verify_firebase_id_token(token: str) -> Dict[str, Any]:
             raise HTTPException(status_code=401, detail="Invalid or expired authentication token.")
 
         _validate_claims_project(claims, expected_project)
+        if "uid" not in claims:
+            claims["uid"] = claims.get("user_id") or claims.get("sub")
         return claims
     except ValueError as exc:
         err_msg = str(exc).lower()

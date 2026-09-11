@@ -14,5 +14,13 @@
       "session_id": "0e68a346-505e-4cae-8559-d463744001b7"
     },
     "synced_at": "2026-09-11T18:38:01+00:00"
+  },
+  "rhythm_action_0717c791": {
+    "user_id": "5ce415ca-cc40-4f40-898e-bf14bc9f0cd3",
+    "type": "RHYTHM_SESSION_SUBMIT",
+    "outcome": {
+      "session_id": "516a5e26-7ff3-4b95-a3ff-3a64d805bb42"
+    },
+    "synced_at": "2026-09-11T19:52:58+00:00"
   }
 }

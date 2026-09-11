@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { T } from "../utils/theme";
 import { DarkCard, Btn, Stars } from "../components/RiskDashboard";
-import { saveSession, getUser, firebaseOnboard, fetchMe } from "../services/api";
+import { saveSession, getUser, firebaseOnboard, fetchMe, login, register, resetAndSeedDemo } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import LanguageSelector from "../components/common/LanguageSelector";
 
@@ -62,45 +62,59 @@ export default function LoginPage({ setView, setRole, setCurrentUser, onAuthSucc
     setLoading(true);
     try {
       if (tab === "login") {
-        // ── 1. Real Firebase Authentication ──────────────────────────────────
-        const userCredential = await signInWithEmail(email.trim(), password);
-        const fbUser = userCredential.user;
-        const idToken = await fbUser.getIdToken();
+        let authenticatedUser = null;
+        let sessionToken = null;
 
-        // ── 2. Retrieve verified NeuroAid profile from FastAPI backend ──────
-        let userProfile = null;
+        // ── 1. Try Firebase Authentication ──────────────────────────────────
         try {
-          userProfile = await fetchMe(idToken);
-        } catch {
-          // If profile does not exist yet on backend, onboard using verified identity
-          const onboardRes = await firebaseOnboard(
-            {
-              full_name: fbUser.displayName || email.trim().split("@")[0],
-              role: backendRole,
-            },
-            idToken
-          );
-          userProfile = onboardRes.user;
+          const userCredential = await signInWithEmail(email.trim(), password);
+          const fbUser = userCredential.user;
+          sessionToken = await fbUser.getIdToken();
+
+          try {
+            authenticatedUser = await fetchMe(sessionToken);
+          } catch {
+            const onboardRes = await firebaseOnboard(
+              {
+                full_name: fbUser.displayName || email.trim().split("@")[0],
+                role: backendRole,
+              },
+              sessionToken
+            );
+            authenticatedUser = onboardRes.user;
+          }
+        } catch (fbErr) {
+          console.info("Firebase login notice, attempting local backend authentication:", fbErr.message);
+
+          // ── 2. Seamless Fallback: Local NeuroAid Backend Authentication ──────
+          try {
+            const localRes = await login(email.trim(), password, backendRole);
+            authenticatedUser = localRes.user;
+            sessionToken = localRes.token;
+          } catch (localErr) {
+            // Both engines failed — provide clean, helpful error message
+            const friendly = fbErr.code === "auth/invalid-credential" || fbErr.code === "auth/user-not-found"
+              ? (localErr.message || "Invalid email or password. Please verify credentials or create an account.")
+              : (localErr.message || fbErr.message);
+            throw new Error(friendly);
+          }
         }
 
-        saveSession(idToken, userProfile);
+        saveSession(sessionToken, authenticatedUser);
 
         if (onAuthSuccess) {
-          onAuthSuccess(userProfile, userProfile.role || backendRole, false);
+          onAuthSuccess(authenticatedUser, authenticatedUser.role || backendRole, false);
         } else {
-          if (setCurrentUser) setCurrentUser(userProfile);
+          if (setCurrentUser) setCurrentUser(authenticatedUser);
           setRole(mode);
           setView(mode === "doctor" ? "doctor-dashboard" : mode === "caregiver" ? "caregiver-dashboard" : "dashboard");
         }
       } else {
-        // ── 1. Real Firebase Registration ────────────────────────────────────
-        const userCredential = await signUpWithEmail(email.trim(), password);
-        const fbUser = userCredential.user;
-        const idToken = await fbUser.getIdToken();
-
-        // ── 2. Authenticated Firebase Onboard to FastAPI (Real Token, No Fake Passwords) ─
-        const registrationMetadata = {
+        // ── Registration (Dual Engine: Firebase + Local Backend Fallback) ──────
+        const registrationPayload = {
           full_name: fullName.trim(),
+          email: email.trim(),
+          password: password,
           role: backendRole,
           age: age ? parseInt(age) : undefined,
           license_number: license.trim() || undefined,
@@ -113,10 +127,27 @@ export default function LoginPage({ setView, setRole, setCurrentUser, onAuthSucc
           max_patients: 10,
         };
 
-        const onboardRes = await firebaseOnboard(registrationMetadata, idToken);
-        const registeredUser = onboardRes.user;
+        let registeredUser = null;
+        let sessionToken = null;
 
-        saveSession(idToken, registeredUser);
+        try {
+          const userCredential = await signUpWithEmail(email.trim(), password);
+          const fbUser = userCredential.user;
+          sessionToken = await fbUser.getIdToken();
+          const onboardRes = await firebaseOnboard(registrationPayload, sessionToken);
+          registeredUser = onboardRes.user;
+        } catch (fbErr) {
+          console.warn("Firebase sign-up notice, attempting backend registration:", fbErr.message);
+          try {
+            const backendRes = await register(registrationPayload);
+            registeredUser = backendRes.user;
+            sessionToken = backendRes.token;
+          } catch (backendErr) {
+            throw new Error(backendErr.message || fbErr.message || "Registration failed. Please check your details.");
+          }
+        }
+
+        saveSession(sessionToken, registeredUser);
 
         if (onAuthSuccess) {
           onAuthSuccess(registeredUser, backendRole, true);
@@ -141,7 +172,6 @@ export default function LoginPage({ setView, setRole, setCurrentUser, onAuthSucc
       const fbUser = result.user;
       const idToken = await fbUser.getIdToken();
 
-      // First-time Google accounts default to patient role (never auto-doctor/admin)
       const googleRole = "patient";
       const isFirstTime = Boolean(result._tokenResponse?.isNewUser);
 
@@ -169,7 +199,65 @@ export default function LoginPage({ setView, setRole, setCurrentUser, onAuthSucc
         setView("dashboard");
       }
     } catch (err) {
-      setError(err.message || "Google Sign-In failed. Please try again.");
+      if (err.message && err.message.includes("unauthorized-domain")) {
+        setError("Google Sign-In requires accessing via http://localhost:5173 (127.0.0.1 is not on Firebase OAuth whitelist). Please access via localhost or sign in with Email below.");
+      } else {
+        setError(err.message || "Google Sign-In failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleQuickLogin(targetRole) {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await resetAndSeedDemo();
+      let targetUser = null;
+      let token = null;
+
+      if (targetRole === "doctor") {
+        targetUser = {
+          id: res.doctor.id,
+          full_name: res.doctor.name,
+          role: "doctor",
+          email: "dr.hazarika@sihdemo.local",
+          specialization: "Cognitive Neurologist",
+          hospital: "GMCH Guwahati",
+        };
+        token = res.doctor.token;
+      } else if (targetRole === "caregiver") {
+        targetUser = {
+          id: res.caregiver.id,
+          full_name: res.caregiver.name,
+          role: "caregiver",
+          email: "ananya.das@sihdemo.local",
+        };
+        token = res.caregiver.token;
+      } else {
+        targetUser = {
+          id: res.patient.id,
+          full_name: res.patient.name,
+          role: "patient",
+          email: "biren.das@sihdemo.local",
+          location: "Guwahati, Assam",
+          age: 68,
+        };
+        token = res.patient.token;
+      }
+
+      saveSession(token, targetUser);
+
+      if (onAuthSuccess) {
+        onAuthSuccess(targetUser, targetRole === "doctor" ? "doctor" : targetRole === "caregiver" ? "caregiver" : "user", false);
+      } else {
+        if (setCurrentUser) setCurrentUser(targetUser);
+        setRole(targetRole === "doctor" ? "doctor" : targetRole === "caregiver" ? "caregiver" : "user");
+        setView(targetRole === "doctor" ? "doctor-dashboard" : targetRole === "caregiver" ? "caregiver-dashboard" : "dashboard");
+      }
+    } catch (err) {
+      setError("Quick login error: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -425,6 +513,98 @@ export default function LoginPage({ setView, setRole, setCurrentUser, onAuthSucc
                   : "Create Account →"}
               </Btn>
             )}
+          </div>
+
+          {/* Quick Demo Access Buttons */}
+          <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.creamFaint, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10, textAlign: "center" }}>
+              ⚡ Instant 1-Click Evaluation Sign-In
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => handleQuickLogin("patient")}
+                disabled={loading}
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: 10,
+                  padding: "8px 6px",
+                  color: T.cream,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "'DM Sans',sans-serif",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 3,
+                  transition: "all 0.2s",
+                }}
+                onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.10)")}
+                onMouseOut={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+              >
+                <span style={{ fontSize: 15 }}>👤</span>
+                <span>Patient</span>
+                <span style={{ fontSize: 9, color: T.creamFaint }}>Biren Das</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleQuickLogin("doctor")}
+                disabled={loading}
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: 10,
+                  padding: "8px 6px",
+                  color: T.cream,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "'DM Sans',sans-serif",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 3,
+                  transition: "all 0.2s",
+                }}
+                onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.10)")}
+                onMouseOut={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+              >
+                <span style={{ fontSize: 15 }}>🩺</span>
+                <span>Doctor</span>
+                <span style={{ fontSize: 9, color: T.creamFaint }}>Dr. Hazarika</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleQuickLogin("caregiver")}
+                disabled={loading}
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: 10,
+                  padding: "8px 6px",
+                  color: T.cream,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "'DM Sans',sans-serif",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 3,
+                  transition: "all 0.2s",
+                }}
+                onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.10)")}
+                onMouseOut={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+              >
+                <span style={{ fontSize: 15 }}>👥</span>
+                <span>Caregiver</span>
+                <span style={{ fontSize: 9, color: T.creamFaint }}>Ananya Das</span>
+              </button>
+            </div>
           </div>
 
           <div style={{ textAlign: "center", marginTop: 18 }}>

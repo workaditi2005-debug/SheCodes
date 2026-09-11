@@ -568,5 +568,44 @@
     "license_number": null,
     "created_at": "2026-09-11T18:54:46+00:00",
     "last_login": "2026-09-11T18:54:46+00:00"
+  },
+  "6878e8e7-b63c-41f0-bda5-84a96eae37ad": {
+    "id": "6878e8e7-b63c-41f0-bda5-84a96eae37ad",
+    "full_name": "Demo Test",
+    "email": "test_login_demo@neuroaid.ai",
+    "password_hash": "pbkdf2_sha256$390000$ea72aee440c431a9f69b68a3c39d1289$a057747406b38159d3469fbd1c58a9c119cad27cbb8c901375a2c38376d27375",
+    "role": "patient",
+    "age": null,
+    "gender": null,
+    "phone": null,
+    "license_number": null,
+    "created_at": "2026-09-11T19:47:51+00:00",
+    "last_login": "2026-09-11T19:47:59+00:00"
+  },
+  "1412011b-8b5c-4485-a958-47b3b07a2200": {
+    "id": "1412011b-8b5c-4485-a958-47b3b07a2200",
+    "firebase_uid": "3MKzzSx44IShtn9aDLbhCnaUbC72",
+    "full_name": "Probe User",
+    "email": "test_neuroaid_probe_2026@example.com",
+    "role": "patient",
+    "age": null,
+    "gender": null,
+    "phone": null,
+    "license_number": null,
+    "created_at": "2026-09-11T19:49:11+00:00",
+    "last_login": "2026-09-11T19:49:11+00:00"
+  },
+  "5ce415ca-cc40-4f40-898e-bf14bc9f0cd3": {
+    "id": "5ce415ca-cc40-4f40-898e-bf14bc9f0cd3",
+    "full_name": "Offline Sync Patient",
+    "email": "offline_sync_579a48@example.com",
+    "password_hash": "pbkdf2_sha256$390000$9ed2d69be3730f3df499bb396ce9ac14$42374ce25542cf19d36f540bacad08bc0bf79e6fa287a2d1c5a146b1fd5a6894",
+    "role": "patient",
+    "age": null,
+    "gender": null,
+    "phone": null,
+    "license_number": null,
+    "created_at": "2026-09-11T19:52:58+00:00",
+    "last_login": "2026-09-11T19:52:58+00:00"
   }
 }
