@@ -120,56 +120,56 @@ def logout(authorization: str = Header(...)) -> Dict[str, str]:
 
 
 @router.get("/me")
-def get_current_user(authorization: str = Header(...)) -> Dict[str, Any]:
+def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
     return {"user": auth_service.safe_user(auth_service.require_user(authorization))}
 
 
 @router.get("/patients")
-def get_patients(authorization: str = Header(...)) -> Dict[str, Any]:
+def get_patients(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
     care_member = auth_service.require_care_team(authorization)
     return {"patients": auth_service.list_patients_for_doctor(care_member["id"])}
 
 
 @router.put("/me")
-def update_profile(body: UserProfileUpdate, authorization: str = Header(...)) -> Dict[str, Any]:
+def update_profile(body: UserProfileUpdate, authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
     user = auth_service.require_user(authorization)
     updated = auth_service.update_basic_profile(user["id"], body.model_dump(exclude_unset=True))
     return {"message": "Profile updated.", "user": updated}
 
 
 @router.put("/profile-extended")
-def update_profile_extended(body: ExtendedProfileUpdate, authorization: str = Header(...)) -> Dict[str, Any]:
+def update_profile_extended(body: ExtendedProfileUpdate, authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
     user = auth_service.require_user(authorization)
     updated = auth_service.update_extended_profile(user["id"], body.model_dump(exclude_unset=True))
     return {"message": "Extended profile saved.", "user": updated}
 
 
 @router.get("/doctors")
-def get_doctors(authorization: str = Header(...)) -> Dict[str, Any]:
+def get_doctors(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
     auth_service.require_user(authorization)
     return {"doctors": auth_service.list_doctors()}
 
 
 @router.post("/doctors/enroll")
-def enroll_with_doctor(body: Dict[str, Any], authorization: str = Header(...)) -> Dict[str, Any]:
+def enroll_with_doctor(body: Dict[str, Any], authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
     user = auth_service.require_user(authorization)
     return auth_service.request_doctor_enrollment(user["id"], body.get("doctor_id", ""))
 
 
 @router.post("/doctors/approve")
-def approve_patient(body: Dict[str, Any], authorization: str = Header(...)) -> Dict[str, str]:
+def approve_patient(body: Dict[str, Any], authorization: Optional[str] = Header(None)) -> Dict[str, str]:
     doctor = auth_service.require_doctor(authorization)
     return auth_service.respond_to_enrollment_request(doctor["id"], body.get("patient_id", ""), body.get("action", ""))
 
 
 @router.get("/doctors/my-doctor")
-def get_my_doctor(authorization: str = Header(...)) -> Dict[str, Any]:
+def get_my_doctor(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
     user = auth_service.require_user(authorization)
     return auth_service.get_my_doctor_payload(user["id"])
 
 
 @router.get("/doctors/pending-requests")
-def get_pending_requests(authorization: str = Header(...)) -> Dict[str, Any]:
+def get_pending_requests(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
     doctor = auth_service.require_doctor(authorization)
     return {"pending_requests": auth_service.get_pending_requests(doctor["id"])}
 
@@ -179,9 +179,10 @@ def get_audit_logs(
     limit: int = Query(default=50, ge=1, le=500),
     event: Optional[str] = Query(default=None),
     actor: Optional[str] = Query(default=None),
-    authorization: str = Header(...),
+    authorization: Optional[str] = Header(None),
 ) -> Dict[str, Any]:
     """Retrieve security and PHI access audit trail (Authorized clinician/admin only)."""
     user = auth_service.require_care_team(authorization)
     logs = audit_service.query_logs(user, limit=limit, event_filter=event, actor_filter=actor)
     return {"audit_logs": logs, "total_returned": len(logs)}
+

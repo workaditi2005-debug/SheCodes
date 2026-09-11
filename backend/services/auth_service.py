@@ -525,29 +525,83 @@ def list_doctors() -> List[Dict[str, Any]]:
     return doctors
 
 
+def find_user_by_identifier(identifier: Optional[str], users: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    """
+    Resolve a user record by internal application UUID ('id'),
+    Firebase UID ('firebase_uid'), or email address.
+    Ensures identical canonical entity resolution across all portals and roles.
+    """
+    if not identifier or not isinstance(identifier, str) or not identifier.strip():
+        return None
+    ident = identifier.strip()
+    if users is None:
+        users = get_users()
+
+    # 1. Direct primary key match (user["id"])
+    if ident in users:
+        return users[ident]
+
+    # 2. Match by unique firebase_uid
+    for u in users.values():
+        if isinstance(u, dict) and u.get("firebase_uid") == ident:
+            return u
+
+    # 3. Match by verified email (case-insensitive)
+    ident_lower = ident.lower()
+    for u in users.values():
+        if isinstance(u, dict) and u.get("email", "").strip().lower() == ident_lower:
+            return u
+
+    return None
+
+
 def request_doctor_enrollment(patient_id: str, doctor_id: str) -> Dict[str, Any]:
     users = get_users()
-    patient = users.get(patient_id)
-    doctor = users.get(doctor_id)
+    patient = find_user_by_identifier(patient_id, users)
+    doctor = find_user_by_identifier(doctor_id, users)
 
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient profile not found.")
     if not doctor or doctor.get("role") != "doctor":
         raise HTTPException(status_code=404, detail="Doctor not found.")
-    if len(doctor.get("patient_list", [])) >= doctor.get("max_patients", 10):
-        raise HTTPException(status_code=400, detail="This doctor has reached maximum patient capacity.")
-    if patient_id in doctor.get("patient_list", []):
-        raise HTTPException(status_code=400, detail="You are already enrolled with this doctor.")
-    if any(request["patient_id"] == patient_id for request in doctor.get("pending_requests", [])):
-        raise HTTPException(status_code=400, detail="Your enrollment request is already pending.")
 
-    doctor.setdefault("pending_requests", []).append(
-        {
-            "patient_id": patient_id,
-            "patient_name": patient["full_name"],
-            "patient_email": patient["email"],
-            "requested_at": utcnow_iso(),
-        }
-    )
-    patient["pending_doctor_id"] = doctor_id
+    canonical_doc_id = doctor["id"]
+    canonical_pat_id = patient["id"]
+
+    # Check capacity against approved patients
+    approved_count = len(doctor.get("patient_list", []))
+    max_p = doctor.get("max_patients", 10)
+    if approved_count >= max_p:
+        raise HTTPException(status_code=400, detail="This doctor has reached maximum patient capacity.")
+
+    # Check if already enrolled
+    if canonical_pat_id in doctor.get("patient_list", []) or patient.get("assigned_doctor_id") == canonical_doc_id:
+        raise HTTPException(status_code=400, detail="You are already enrolled with this doctor.")
+
+    # Check if request is already pending (safe against malformed records)
+    pending_list = doctor.get("pending_requests", [])
+    for request in pending_list:
+        if isinstance(request, dict):
+            req_pat_id = request.get("patient_id") or request.get("patient_uid")
+            if req_pat_id in (canonical_pat_id, patient.get("firebase_uid")):
+                raise HTTPException(status_code=400, detail="Your enrollment request is already pending.")
+
+    # Append request with canonical identities and explicit pending status
+    request_record = {
+        "patient_id": canonical_pat_id,
+        "patient_uid": patient.get("firebase_uid"),
+        "patient_name": patient.get("full_name") or "Patient",
+        "patient_email": patient.get("email") or "",
+        "doctor_id": canonical_doc_id,
+        "status": "pending",
+        "requested_at": utcnow_iso(),
+    }
+    doctor.setdefault("pending_requests", []).append(request_record)
+    patient["pending_doctor_id"] = canonical_doc_id
+
+    # Persist back under canonical primary keys
+    users[canonical_doc_id] = doctor
+    users[canonical_pat_id] = patient
     users_store.write(users)
 
     # In-app notification for the doctor
@@ -557,11 +611,11 @@ def request_doctor_enrollment(patient_id: str, doctor_id: str) -> Dict[str, Any]
         if isinstance(msgs, list):
             msgs.append({
                 "id": str(uuid.uuid4()),
-                "sender_id": patient_id,
-                "sender_name": patient["full_name"],
+                "sender_id": canonical_pat_id,
+                "sender_name": patient.get("full_name") or "Patient",
                 "sender_role": "patient",
-                "recipient_id": doctor_id,
-                "text": f"New Patient Connection Request: {patient['full_name']} ({patient.get('email', '')}) has requested you as their supervising neurologist.",
+                "recipient_id": canonical_doc_id,
+                "text": f"New Patient Connection Request: {patient.get('full_name')} ({patient.get('email', '')}) has requested you as their supervising neurologist.",
                 "timestamp": utcnow_iso(),
                 "deleted_by": [],
                 "type": "enrollment_request",
@@ -572,37 +626,52 @@ def request_doctor_enrollment(patient_id: str, doctor_id: str) -> Dict[str, Any]
 
     record(
         event="care_team.enrollment_requested",
-        actor_id=patient_id,
-        subject_id=doctor_id,
+        actor_id=canonical_pat_id,
+        subject_id=canonical_doc_id,
         outcome="success",
     )
-    return {"message": "Enrollment request sent. Waiting for doctor approval.", "doctor": safe_user(doctor, include_private=False)}
+    return {"status": "pending", "message": "Enrollment request sent. Waiting for doctor approval.", "doctor": safe_user(doctor, include_private=False)}
 
 
 def respond_to_enrollment_request(doctor_id: str, patient_id: str, action: str) -> Dict[str, str]:
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'.")
+
     users = get_users()
-    if patient_id not in users:
+    doctor = find_user_by_identifier(doctor_id, users)
+    if not doctor or doctor.get("role") != "doctor":
+        raise HTTPException(status_code=404, detail="Doctor record not found.")
+
+    patient = find_user_by_identifier(patient_id, users)
+    if not patient:
         raise HTTPException(status_code=404, detail="Patient not found.")
 
-    doctor = users.get(doctor_id)
-    doctor["pending_requests"] = [
-        request
-        for request in doctor.get("pending_requests", [])
-        if request["patient_id"] != patient_id
-    ]
+    canonical_doc_id = doctor["id"]
+    canonical_pat_id = patient["id"]
+
+    # Filter out the approved/rejected request safely (handles malformed entries)
+    existing_requests = doctor.get("pending_requests", [])
+    updated_requests = []
+    for request in existing_requests:
+        if not isinstance(request, dict):
+            continue
+        req_pat_id = request.get("patient_id") or request.get("patient_uid")
+        if req_pat_id not in (canonical_pat_id, patient.get("firebase_uid")):
+            updated_requests.append(request)
+    doctor["pending_requests"] = updated_requests
 
     if action == "approve":
         doctor.setdefault("patient_list", [])
-        if patient_id not in doctor["patient_list"]:
-            doctor["patient_list"].append(patient_id)
+        if canonical_pat_id not in doctor["patient_list"]:
+            doctor["patient_list"].append(canonical_pat_id)
         doctor["current_patients"] = len(doctor["patient_list"])
-        users[patient_id]["assigned_doctor_id"] = doctor_id
-        users[patient_id].pop("pending_doctor_id", None)
+        patient["assigned_doctor_id"] = canonical_doc_id
+        patient.pop("pending_doctor_id", None)
     elif action == "reject":
-        users[patient_id].pop("pending_doctor_id", None)
-    else:
-        raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'.")
+        patient.pop("pending_doctor_id", None)
 
+    users[canonical_doc_id] = doctor
+    users[canonical_pat_id] = patient
     users_store.write(users)
     verb = "approved" if action == "approve" else "rejected"
 
@@ -613,11 +682,11 @@ def respond_to_enrollment_request(doctor_id: str, patient_id: str, action: str) 
         if isinstance(msgs, list):
             msgs.append({
                 "id": str(uuid.uuid4()),
-                "sender_id": doctor_id,
-                "sender_name": doctor["full_name"],
+                "sender_id": canonical_doc_id,
+                "sender_name": doctor.get("full_name") or "Doctor",
                 "sender_role": "doctor",
-                "recipient_id": patient_id,
-                "text": f"Your enrollment request has been {verb} by Dr. {doctor['full_name']}.",
+                "recipient_id": canonical_pat_id,
+                "text": f"Your enrollment request has been {verb} by Dr. {doctor.get('full_name')}.",
                 "timestamp": utcnow_iso(),
                 "deleted_by": [],
                 "type": "enrollment_response",
@@ -625,10 +694,11 @@ def respond_to_enrollment_request(doctor_id: str, patient_id: str, action: str) 
             messages_store.write(msgs)
     except Exception:
         pass
+
     record(
         event=f"care_team.enrollment_{action}d",
-        actor_id=doctor_id,
-        subject_id=patient_id,
+        actor_id=canonical_doc_id,
+        subject_id=canonical_pat_id,
         outcome="success",
         metadata={"action": action},
     )
@@ -637,23 +707,62 @@ def respond_to_enrollment_request(doctor_id: str, patient_id: str, action: str) 
 
 def get_my_doctor_payload(patient_id: str) -> Dict[str, Any]:
     users = get_users()
-    patient = users.get(patient_id, {})
+    patient = find_user_by_identifier(patient_id, users)
+    payload = {"doctor": None, "pending_doctor": None}
+    if not patient:
+        return payload
+
     assigned_id = patient.get("assigned_doctor_id")
     pending_id = patient.get("pending_doctor_id")
-    payload = {"doctor": None, "pending_doctor": None}
 
-    if assigned_id and assigned_id in users:
-        doctor = safe_user(users[assigned_id], include_private=False)
-        doctor["current_patients"] = len(users[assigned_id].get("patient_list", []))
-        payload["doctor"] = doctor
-    if pending_id and pending_id in users:
-        payload["pending_doctor"] = safe_user(users[pending_id], include_private=False)
+    if assigned_id:
+        doc = find_user_by_identifier(assigned_id, users)
+        if doc and doc.get("role") == "doctor":
+            d = safe_user(doc, include_private=False)
+            d["current_patients"] = len(doc.get("patient_list", []))
+            payload["doctor"] = d
+
+    if pending_id:
+        p_doc = find_user_by_identifier(pending_id, users)
+        if p_doc and p_doc.get("role") == "doctor":
+            payload["pending_doctor"] = safe_user(p_doc, include_private=False)
+
     return payload
 
 
 def get_pending_requests(doctor_id: str) -> List[Dict[str, Any]]:
     users = get_users()
-    return users.get(doctor_id, {}).get("pending_requests", [])
+    doctor = find_user_by_identifier(doctor_id, users)
+    if not doctor or doctor.get("role") != "doctor":
+        return []
+
+    raw_requests = doctor.get("pending_requests", [])
+    valid_requests = []
+    canonical_doc_id = doctor["id"]
+
+    for req in raw_requests:
+        if not isinstance(req, dict):
+            continue
+        p_id = req.get("patient_id") or req.get("patient_uid")
+        if not p_id:
+            continue
+
+        p_user = find_user_by_identifier(p_id, users)
+        p_name = req.get("patient_name") or (p_user.get("full_name") if p_user else "Patient")
+        p_email = req.get("patient_email") or (p_user.get("email") if p_user else "")
+        canonical_p_id = p_user["id"] if p_user else p_id
+
+        valid_requests.append({
+            "patient_id": canonical_p_id,
+            "patient_uid": p_user.get("firebase_uid") if p_user else req.get("patient_uid"),
+            "patient_name": p_name,
+            "patient_email": p_email,
+            "doctor_id": canonical_doc_id,
+            "status": req.get("status", "pending"),
+            "requested_at": req.get("requested_at") or utcnow_iso(),
+        })
+
+    return valid_requests
 
 
 def create_or_link_firebase_profile(authorization: str, payload: Any) -> Dict[str, Any]:

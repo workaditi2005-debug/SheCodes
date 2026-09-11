@@ -23,19 +23,34 @@ export default function DoctorHome({ setPage, setSelectedPatient }) {
   const [pendingRequests,  setPendingRequests]  = useState([]);
   const [loading,          setLoading]          = useState(true);
   const [actionLoading,    setActionLoading]    = useState(null);
-  const [actionMsg,        setActionMsg]        = useState(null);
+  const [actionStatus,     setActionStatus]     = useState(null);
+  const [loadError,        setLoadError]        = useState(null);
   const doctor = getUser();
 
   async function loadData() {
+    setLoadError(null);
     try {
-      const [list, pendingList] = await Promise.all([
-        getPatients().catch(() => []),
-        getPendingRequests().catch(() => []),
+      const [listResult, pendingResult] = await Promise.allSettled([
+        getPatients(),
+        getPendingRequests(),
       ]);
-      setPatients(list || []);
-      setPendingRequests(pendingList || []);
+
+      if (listResult.status === "fulfilled") {
+        setPatients(listResult.value || []);
+      } else {
+        console.warn("Failed to load patient list:", listResult.reason);
+      }
+
+      if (pendingResult.status === "fulfilled") {
+        setPendingRequests(pendingResult.value || []);
+      } else {
+        console.warn("Failed to load pending requests:", pendingResult.reason);
+        setPendingRequests([]);
+        setLoadError(pendingResult.reason?.message || "Failed to load pending requests.");
+      }
     } catch (e) {
       setPatients([]);
+      setPendingRequests([]);
     } finally {
       setLoading(false);
     }
@@ -43,13 +58,19 @@ export default function DoctorHome({ setPage, setSelectedPatient }) {
 
   async function handleApproval(patientId, action) {
     setActionLoading(patientId + action);
-    setActionMsg(null);
+    setActionStatus(null);
     try {
       const data = await approvePatient(patientId, action);
-      setActionMsg(data?.message || (action === "approve" ? "Patient approved successfully." : "Request rejected."));
+      setActionStatus({
+        type: "success",
+        text: data?.message || (action === "approve" ? "Patient approved successfully." : "Request rejected."),
+      });
       await loadData();
     } catch (e) {
-      setActionMsg(e.message || "Action failed. Please try again.");
+      setActionStatus({
+        type: "error",
+        text: e.message || "Action failed. Please try again.",
+      });
     } finally {
       setActionLoading(null);
     }
@@ -102,17 +123,73 @@ export default function DoctorHome({ setPage, setSelectedPatient }) {
             ))}
           </div>
 
+          {/* ── Load Error Banner ── */}
+          {loadError && (
+            <div style={{
+              marginBottom: 20,
+              padding: "12px 18px",
+              borderRadius: 12,
+              background: "rgba(245,158,11,0.08)",
+              border: "1px solid rgba(245,158,11,0.25)",
+              color: T.amber,
+              fontSize: 13,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span>⚠️</span>
+                <span>{loadError}</span>
+              </div>
+              <button
+                onClick={loadData}
+                style={{
+                  background: "rgba(245,158,11,0.18)",
+                  border: "1px solid rgba(245,158,11,0.35)",
+                  color: T.cream,
+                  borderRadius: 8,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* ── Pending Enrollment Requests ── */}
-          {pendingRequests.length > 0 && (
+          {(pendingRequests.length > 0 || actionStatus) && (
             <DarkCard style={{ padding: 24, marginBottom: 20, border: "1px solid rgba(245,158,11,0.25)" }} hover={false}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: pendingRequests.length > 0 ? 16 : 10 }}>
                 <div style={{ fontWeight: 700, color: T.amber, fontSize: 14 }}>
                   ⏳ Pending Enrollment Requests ({pendingRequests.length})
                 </div>
+                {pendingRequests.length === 0 && (
+                  <button
+                    onClick={() => setActionStatus(null)}
+                    style={{ background: "none", border: "none", color: T.creamFaint, fontSize: 12, cursor: "pointer" }}
+                  >
+                    Dismiss
+                  </button>
+                )}
               </div>
-              {actionMsg && (
-                <div style={{ marginBottom: 12, padding: "8px 14px", borderRadius: 8, background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: T.green, fontSize: 13 }}>
-                  ✓ {actionMsg}
+              {actionStatus && (
+                <div style={{
+                  marginBottom: pendingRequests.length > 0 ? 12 : 0,
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  background: actionStatus.type === "success" ? "rgba(74,222,128,0.08)" : "rgba(239,68,68,0.10)",
+                  border: `1px solid ${actionStatus.type === "success" ? "rgba(74,222,128,0.25)" : "rgba(239,68,68,0.3)"}`,
+                  color: actionStatus.type === "success" ? T.green : T.red,
+                  fontSize: 13,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}>
+                  <span>{actionStatus.type === "success" ? "✓" : "⚠️"}</span>
+                  <span>{actionStatus.text}</span>
                 </div>
               )}
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

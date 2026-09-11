@@ -57,19 +57,42 @@ async function request(method, path, body, requiresAuth = false) {
     if (!authToken) throw new Error("Not authenticated. Please log in.");
     headers["Authorization"] = `Bearer ${authToken}`;
   }
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (networkErr) {
+    throw new Error(`Network connection failed (${networkErr.message || "Failed to fetch"}). Please check that the server is running.`);
+  }
+
   if (!res.ok) {
+    let detail = "";
+    try {
+      const err = await res.json();
+      detail = err?.detail || "";
+    } catch {}
+
     if (res.status === 401 && requiresAuth) {
       clearSession();
+      throw new Error(detail || "Session expired or unauthorized. Please log in again.");
     }
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `API error ${res.status}`);
+    if (res.status === 403) {
+      throw new Error(detail || "Access denied: Doctor privileges required.");
+    }
+    if (res.status === 404) {
+      throw new Error(detail || "Requested resource not found.");
+    }
+    throw new Error(detail || `API error (${res.status}): ${res.statusText || "Request failed"}`);
   }
-  return res.json();
+
+  try {
+    return await res.json();
+  } catch {
+    return {};
+  }
 }
 
 // ── Auth API ──────────────────────────────────────────────────────────────────
@@ -205,7 +228,7 @@ export async function enrollWithDoctor(doctorId) {
 
 export async function getPendingRequests() {
   const data = await request("GET", "/auth/doctors/pending-requests", null, true);
-  return data.pending_requests;
+  return data?.pending_requests || [];
 }
 
 export async function approvePatient(patientId, action) {
