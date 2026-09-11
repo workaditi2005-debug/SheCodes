@@ -3,7 +3,7 @@
     "id": "sih-demo-patient-001",
     "full_name": "Biren Das (Demo Patient)",
     "email": "biren.das@sihdemo.local",
-    "password_hash": "pbkdf2_sha256$390000$591cbf4c18563455cc4a845b720c9f8e$ac81cbaa85f353d14529afcbb4faf2273986d77a2e8257fcae17dec519058899",
+    "password_hash": "pbkdf2_sha256$390000$42362472a761f627cd3c707ba86ca74a$1e04df8fc6f1db5b839c38109a9543461df13371a944641d5257d3f9243935ce",
     "role": "patient",
     "age": 68,
     "gender": "Male",
@@ -12,14 +12,14 @@
     "education": "Graduate",
     "occupation": "Retired High School Teacher (Assam)",
     "location": "Guwahati, Assam",
-    "created_at": "2026-09-11T05:06:54+00:00",
-    "last_login": "2026-09-11T05:06:54+00:00"
+    "created_at": "2026-09-11T17:30:40+00:00",
+    "last_login": "2026-09-11T17:30:40+00:00"
   },
   "sih-demo-doctor-001": {
     "id": "sih-demo-doctor-001",
     "full_name": "Dr. Rupjyoti Hazarika",
     "email": "dr.hazarika@sihdemo.local",
-    "password_hash": "pbkdf2_sha256$390000$cf4289d974e339533b271c4a00a443df$972038c1551d6433b972627170ff133ad089891bda68da6432704589f86eeb52",
+    "password_hash": "pbkdf2_sha256$390000$a96f8c4e4b227fd36cb8f12629045673$1fa5a087f81c93ede5ebeb9186843eb337859e1be9760459b0424851d0a9a603",
     "role": "doctor",
     "specialization": "Cognitive Neurologist",
     "hospital": "Guwahati Medical College & Hospital (GMCH)",
@@ -33,14 +33,14 @@
       "sih-demo-patient-001"
     ],
     "pending_requests": [],
-    "created_at": "2026-09-11T05:06:54+00:00",
-    "last_login": "2026-09-11T05:06:54+00:00"
+    "created_at": "2026-09-11T17:30:40+00:00",
+    "last_login": "2026-09-11T17:30:40+00:00"
   },
   "sih-demo-caregiver-001": {
     "id": "sih-demo-caregiver-001",
     "full_name": "Ananya Das (Caregiver)",
     "email": "ananya.das@sihdemo.local",
-    "password_hash": "pbkdf2_sha256$390000$cf409d666be24e9181eb7d2af9b417f5$e1b975bc29e359279417f0fcace6d9f0e5233b9c640c928e683d103fcb68c648",
+    "password_hash": "pbkdf2_sha256$390000$bf891ba0646c4793274ca55ebe557c1d$8036c1d4df211171b1e35f5dcceb9deab7c20ab3f0ed6efeb808b4a852393979",
     "role": "caregiver",
     "specialization": "Family Caregiver",
     "hospital": "Home Care Network, Assam",
@@ -48,8 +48,8 @@
     "patient_list": [
       "sih-demo-patient-001"
     ],
-    "created_at": "2026-09-11T05:06:54+00:00",
-    "last_login": "2026-09-11T05:06:54+00:00"
+    "created_at": "2026-09-11T17:30:40+00:00",
+    "last_login": "2026-09-11T17:30:40+00:00"
   },
   "62016f45-d650-4f1e-b21a-065d81d92127": {
     "id": "62016f45-d650-4f1e-b21a-065d81d92127",
@@ -310,6 +310,69 @@
   },
   "other-patient-ef298d": {
     "id": "other-patient-ef298d",
+    "full_name": "Private Patient",
+    "email": "private@neuroaid.test",
+    "role": "patient",
+    "assigned_doctor_id": "different-doctor-id"
+  },
+  "neuroaid-user-8b50c1dd": {
+    "id": "neuroaid-user-8b50c1dd",
+    "firebase_uid": "fb-test-uid-de519f2a",
+    "full_name": "Verified Patient",
+    "email": "test_5038d5@example.com",
+    "role": "patient",
+    "age": 60,
+    "created_at": "2026-09-11T00:00:00Z"
+  },
+  "legacy-user-78b6e5bd": {
+    "id": "legacy-user-78b6e5bd",
+    "full_name": "Legacy Existing User",
+    "email": "legacy_d7dac8@neuroaid.local",
+    "role": "patient",
+    "created_at": "2026-09-10T00:00:00Z",
+    "firebase_uid": "fb-link-uid-f9b350e4"
+  },
+  "user-p-20f0eb": {
+    "id": "user-p-20f0eb",
+    "firebase_uid": "fb-p-20502d",
+    "full_name": "Patient Person",
+    "email": "patient_668b@neuroaid.test",
+    "role": "patient"
+  },
+  "user-cg-c878c1": {
+    "id": "user-cg-c878c1",
+    "firebase_uid": "fb-cg-8f4e55",
+    "full_name": "Caregiver Person",
+    "email": "caregiver_6567@neuroaid.test",
+    "role": "caregiver",
+    "patient_list": []
+  },
+  "user-doc-89ba34": {
+    "id": "user-doc-89ba34",
+    "firebase_uid": "fb-doc-b86377",
+    "full_name": "Dr. Smith",
+    "email": "dr.smith_f4d2@neuroaid.test",
+    "role": "doctor",
+    "specialization": "Neurologist",
+    "patient_list": []
+  },
+  "user-adm-6d1baf": {
+    "id": "user-adm-6d1baf",
+    "firebase_uid": "fb-adm-445ac6",
+    "full_name": "System Admin",
+    "email": "admin_e0f4@neuroaid.test",
+    "role": "admin"
+  },
+  "doc-1-c7ebd6": {
+    "id": "doc-1-c7ebd6",
+    "firebase_uid": "fb-doc1-3d2a02",
+    "full_name": "Dr. Unassigned",
+    "email": "unassigned@neuroaid.test",
+    "role": "doctor",
+    "patient_list": []
+  },
+  "other-patient-b15cc9": {
+    "id": "other-patient-b15cc9",
     "full_name": "Private Patient",
     "email": "private@neuroaid.test",
     "role": "patient",
