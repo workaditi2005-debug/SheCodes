@@ -447,15 +447,9 @@ export default function SihDemoController({
         >
           {/* Brand & Badge */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ background: "#c8f135", color: "#000", fontWeight: 900, fontSize: 11, padding: "3px 8px", borderRadius: 6, letterSpacing: 0.8 }}>
-              SIH 2026 PS 26003
-            </span>
             <strong style={{ fontSize: 13, color: "#f8fafc" }}>
-              DETERMINISTIC DEMO MODE
+              DEMO CONTROLLER
             </strong>
-            <span style={{ fontSize: 11, color: "#94a3b8", background: "rgba(255,255,255,0.06)", padding: "2px 8px", borderRadius: 999 }}>
-              [SYNTHETIC DEMO DATA]
-            </span>
           </div>
 
           {/* Stepper Controls */}

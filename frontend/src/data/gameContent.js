@@ -3,7 +3,6 @@
  * ===============================================================
  * Cultural symbols from North Eastern Region & everyday household items,
  * designed with high clarity and contrast for elderly dementia patients.
- * SIH PS 26003.
  */
 
 // ── 1. Memory Match Content Pools ─────────────────────────────────────────────
@@ -20,6 +19,8 @@ export const MEMORY_MATCH_POOLS = {
     { id: "fish", icon: "🐟", label: { en: "Fresh River Fish", as: "নৈৰ মাছ" }, color: "#06b6d4" },
     { id: "lamp", icon: "🪔", label: { en: "Clay Diya Lamp", as: "মাটিৰ চাকি" }, color: "#f97316" },
     { id: "peacock", icon: "🦚", label: { en: "Peacock", as: "ময়ূৰ" }, color: "#3b82f6" },
+    { id: "gamosa", icon: "🧣", label: { en: "Traditional Gamosa", as: "গামোচা" }, color: "#ef4444" },
+    { id: "hornbill", icon: "🐦", label: { en: "Hornbill Bird", as: "ধনেশ পক্ষী" }, color: "#10b981" },
   ],
 };
 export const CULTURAL_ITEMS = MEMORY_MATCH_POOLS.items;
@@ -90,6 +91,50 @@ export const OBJECT_RECOGNITION_QUESTIONS = [
       { text: { en: "Torch (টৰ্চ)", as: "টৰ্চ" }, correct: false },
     ],
   },
+  {
+    id: "obj-6",
+    image: "🪷",
+    hint: { en: "Sacred pink flower growing in village ponds.", as: "পৰম্পৰাগত পুখুৰীত গজা পবিত্ৰ পদুম ফুল।" },
+    question: { en: "Which sacred flower is shown here?", as: "ইয়াৰে কোনটো পবিত্ৰ ফুল?" },
+    options: [
+      { text: { en: "Lotus Flower (পদুম ফুল)", as: "পদুম ফুল" }, correct: true },
+      { text: { en: "Rose (গোলাপ)", as: "গোলাপ" }, correct: false },
+      { text: { en: "Sunflower (সূৰ্যমুখী)", as: "সূৰ্যমুখী" }, correct: false },
+    ],
+  },
+  {
+    id: "obj-7",
+    image: "🪈",
+    hint: { en: "Traditional bamboo wind instrument with melodic tone.", as: "সুৰীয়া বাঁহৰ পৰম্পৰাগত বাদ্যযন্ত্ৰ।" },
+    question: { en: "Which musical instrument is this?", as: "এইটো কি সুৰীয়া বাদ্যযন্ত্ৰ?" },
+    options: [
+      { text: { en: "Bamboo Flute (বাঁহী)", as: "বাঁহী" }, correct: true },
+      { text: { en: "Violin (বেহালা)", as: "বেহালা" }, correct: false },
+      { text: { en: "Drum (ঢোল)", as: "ঢোল" }, correct: false },
+    ],
+  },
+  {
+    id: "obj-8",
+    image: "🐟",
+    hint: { en: "Fresh catch from the Brahmaputra river.", as: "ব্ৰহ্মপুত্ৰ নদীৰ সতেজ মাছ।" },
+    question: { en: "What natural item is depicted here?", as: "ইয়াত কি নদীৰ বস্তু দেখুওৱা হৈছে?" },
+    options: [
+      { text: { en: "Fresh River Fish (নৈৰ মাছ)", as: "নৈৰ মাছ" }, correct: true },
+      { text: { en: "Duck (হাঁহ)", as: "হাঁহ" }, correct: false },
+      { text: { en: "Turtle (কাচ্ছপ)", as: "কাচ্ছপ" }, correct: false },
+    ],
+  },
+  {
+    id: "obj-9",
+    image: "🔔",
+    hint: { en: "Rung every morning in community prayer halls.", as: "নামঘৰ আৰু মন্দিৰত পুৱা বজোৱা কাঁহৰ ঘণ্টা।" },
+    question: { en: "What temple instrument is this?", as: "এইটো নামঘৰৰ কি বস্তু?" },
+    options: [
+      { text: { en: "Temple Bell (কাঁহৰ ঘণ্টা)", as: "কাঁহৰ ঘণ্টা" }, correct: true },
+      { text: { en: "Clock (ঘড়ী)", as: "ঘড়ী" }, correct: false },
+      { text: { en: "Whistle (বংশী)", as: "বংশী" }, correct: false },
+    ],
+  },
 ];
 
 // ── 4. Pattern Completion Puzzles ─────────────────────────────────────────────
@@ -136,6 +181,50 @@ export const PATTERN_COMPLETION_PUZZLES = [
       { icon: "🔴", label: { en: "Red Circle", as: "ৰঙা বৃত্ত" }, correct: true },
       { icon: "🟢", label: { en: "Green Circle", as: "সেউজীয়া বৃত্ত" }, correct: false },
       { icon: "🟡", label: { en: "Yellow Circle", as: "হালধীয়া বৃত্ত" }, correct: false },
+    ],
+  },
+  {
+    id: "pat-5",
+    type: "weather",
+    prompt: { en: "What weather symbol completes the pattern?", as: "বতৰৰ কোনটো চিহ্নই ক্ৰম সম্পূৰ্ণ কৰিব?" },
+    sequence: ["☀️", "🌧️", "☀️", "🌧️", "?"],
+    options: [
+      { icon: "☀️", label: { en: "Sun", as: "সূৰ্য" }, correct: true },
+      { icon: "❄️", label: { en: "Snow", as: "বৰফ" }, correct: false },
+      { icon: "🌪️", label: { en: "Wind", as: "বতাহ" }, correct: false },
+    ],
+  },
+  {
+    id: "pat-6",
+    type: "music",
+    prompt: { en: "Which instrument comes next in rhythm?", as: "তাল অনুসৰি পৰৱৰ্তী বাদ্যযন্ত্ৰ কি?" },
+    sequence: ["🥁", "🪈", "🥁", "🪈", "?"],
+    options: [
+      { icon: "🥁", label: { en: "Dhol", as: "ঢোল" }, correct: true },
+      { icon: "🔔", label: { en: "Bell", as: "ঘণ্টা" }, correct: false },
+      { icon: "🎸", label: { en: "Guitar", as: "গীটাৰ" }, correct: false },
+    ],
+  },
+  {
+    id: "pat-7",
+    type: "animals",
+    prompt: { en: "Which animal completes this wildlife pattern?", as: "কোনটো প্ৰাণীয়ে এই ক্ৰম পূৰ্ণ কৰে?" },
+    sequence: ["🦏", "🦚", "🦏", "🦚", "?"],
+    options: [
+      { icon: "🦏", label: { en: "Rhino", as: "গঁড়" }, correct: true },
+      { icon: "🐘", label: { en: "Elephant", as: "হাতী" }, correct: false },
+      { icon: "🐅", label: { en: "Tiger", as: "বাঘ" }, correct: false },
+    ],
+  },
+  {
+    id: "pat-8",
+    type: "lights",
+    prompt: { en: "Which light symbol completes the pattern?", as: "কোনটো পোহৰৰ চিহ্নই ক্ৰম সম্পূৰ্ণ কৰিব?" },
+    sequence: ["🪔", "⭐", "🪔", "⭐", "?"],
+    options: [
+      { icon: "🪔", label: { en: "Diya", as: "চাকি" }, correct: true },
+      { icon: "⚡", label: { en: "Lightning", as: "বিজুলী" }, correct: false },
+      { icon: "🔥", label: { en: "Fire", as: "জুই" }, correct: false },
     ],
   },
 ];
@@ -191,3 +280,4 @@ export const DAILY_ROUTINE_TASKS = [
     desc: { en: "Peaceful rest for tomorrow", as: "শান্তিপূৰ্ণ নিদ্ৰা" },
   },
 ];
+

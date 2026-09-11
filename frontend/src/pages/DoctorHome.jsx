@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { T } from "../utils/theme";
 import { DarkCard, Btn, MiniChart } from "../components/RiskDashboard";
-import { getPatients, getUser } from "../services/api";
+import { getPatients, getUser, getPendingRequests, approvePatient } from "../services/api";
 
 const LIME = "#C8F135";
 
@@ -28,14 +28,12 @@ export default function DoctorHome({ setPage, setSelectedPatient }) {
 
   async function loadData() {
     try {
-      const [list, pendingData] = await Promise.all([
-        getPatients(),
-        fetch("/api/auth/doctors/pending-requests", {
-          headers: { Authorization: `Bearer ${sessionStorage.getItem("neuroaid_token")}` }
-        }).then(r => r.ok ? r.json() : { pending_requests: [] }),
+      const [list, pendingList] = await Promise.all([
+        getPatients().catch(() => []),
+        getPendingRequests().catch(() => []),
       ]);
       setPatients(list || []);
-      setPendingRequests(pendingData.pending_requests || []);
+      setPendingRequests(pendingList || []);
     } catch (e) {
       setPatients([]);
     } finally {
@@ -47,16 +45,11 @@ export default function DoctorHome({ setPage, setSelectedPatient }) {
     setActionLoading(patientId + action);
     setActionMsg(null);
     try {
-      const res = await fetch("/api/auth/doctors/approve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem("neuroaid_token")}` },
-        body: JSON.stringify({ patient_id: patientId, action }),
-      });
-      const data = await res.json();
-      setActionMsg(data.message);
+      const data = await approvePatient(patientId, action);
+      setActionMsg(data?.message || (action === "approve" ? "Patient approved successfully." : "Request rejected."));
       await loadData();
     } catch (e) {
-      setActionMsg("Action failed. Please try again.");
+      setActionMsg(e.message || "Action failed. Please try again.");
     } finally {
       setActionLoading(null);
     }

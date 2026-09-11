@@ -13,8 +13,14 @@ export function saveSession(token, user) {
   sessionStorage.setItem("neuroaid_user", JSON.stringify(user));
 }
 export function clearSession() {
-  sessionStorage.removeItem("neuroaid_token");
-  sessionStorage.removeItem("neuroaid_user");
+  try {
+    sessionStorage.removeItem("neuroaid_token");
+    sessionStorage.removeItem("neuroaid_user");
+  } catch {}
+  try {
+    localStorage.removeItem("neuroaid_token");
+    localStorage.removeItem("neuroaid_user");
+  } catch {}
 }
 
 // ── Firebase ID Token readiness (Prepared for upcoming backend token verification) ──
@@ -103,7 +109,13 @@ export async function login(email, password, role = "patient") {
 
 /** Logout current user. */
 export async function logout() {
-  try { await request("POST", "/auth/logout", null, true); } finally { clearSession(); }
+  try {
+    await request("POST", "/auth/logout", null, true);
+  } catch (err) {
+    console.warn("Backend logout note:", err);
+  } finally {
+    clearSession();
+  }
 }
 
 /** Get current user profile using current authentication token */
@@ -205,7 +217,7 @@ export async function submitChat(question, userContext = {}) {
   return request("POST", "/chat", { question, user_context: userContext }, false);
 }
 
-// ── Cognitive Games API (SIH PS 26003) ───────────────────────────────────────
+// ── Cognitive Games API ─────────────────────────────────────────────────────
 export async function getGamesList() {
   return request("GET", "/games", null, false);
 }
@@ -254,6 +266,52 @@ export async function completeReminder(reminderId) {
   const optimisticUpdate = async () => { const reminders = await getCached(key, []); const item = reminders.find(r => r.id === reminderId); if (item) { item.status = "completed"; item.last_completed_at = new Date().toISOString(); await setCached(key, reminders); } return item; };
   if (!getIsOnline()) { const item = await optimisticUpdate(); await enqueue({ id: actionId, type: "REMINDER_COMPLETE", payload: { reminder_id: reminderId } }); syncNow(); return item || { id: reminderId, status: "completed", offline: true }; }
   const item = await request("POST", `/reminders/${reminderId}/complete`, null, true); await optimisticUpdate(); return item;
+}
+
+export async function toggleReminderStatus(reminderId, targetStatus) {
+  const actionId = crypto.randomUUID();
+  const key = cacheKey(getUser()?.id, "reminders");
+  const newStatus = targetStatus || "completed";
+
+  const optimisticUpdate = async () => {
+    const reminders = await getCached(key, []);
+    const item = reminders.find(r => r.id === reminderId);
+    if (item) {
+      item.status = newStatus;
+      if (newStatus === "completed") {
+        item.last_completed_at = new Date().toISOString();
+      } else {
+        delete item.last_completed_at;
+      }
+      await setCached(key, reminders);
+    }
+    return item;
+  };
+
+  if (!getIsOnline()) {
+    const item = await optimisticUpdate();
+    await enqueue({
+      id: actionId,
+      type: newStatus === "completed" ? "REMINDER_COMPLETE" : "REMINDER_UPDATE",
+      payload: { reminder_id: reminderId, status: newStatus }
+    });
+    syncNow();
+    return item || { id: reminderId, status: newStatus, offline: true };
+  }
+
+  try {
+    let item;
+    if (newStatus === "completed") {
+      item = await request("POST", `/reminders/${reminderId}/complete`, null, true);
+    } else {
+      item = await request("PUT", `/reminders/${reminderId}`, { status: "pending" }, true);
+    }
+    await optimisticUpdate();
+    return item;
+  } catch (err) {
+    const item = await optimisticUpdate();
+    return item || { id: reminderId, status: newStatus };
+  }
 }
 
 export async function getMemoryItems() {

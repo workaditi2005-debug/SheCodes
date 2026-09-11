@@ -4,6 +4,7 @@ import { DarkCard, Btn, Badge, MiniChart } from "../components/RiskDashboard";
 import { getUser, getMyResults, getDoctors } from "../services/api";
 import { useAssessment } from "../context/AssessmentContext";
 import { submitAnalysis } from "../services/api";
+import { useI18n } from "../i18n/LanguageContext";
 
 const LIME = "#C8F135";
 const RED  = "#e84040";
@@ -353,6 +354,7 @@ function DoctorPanel() {
    Main Dashboard
 ───────────────────────────────────────────── */
 export default function UserDashboard({ setPage }) {
+  const { t } = useI18n();
   const user      = getUser();
   const firstName = user?.full_name?.split(" ")[0] || "there";
   const [results,  setResults]  = useState([]);
@@ -376,11 +378,11 @@ export default function UserDashboard({ setPage }) {
   const hasData = !!last;
 
   const domains = hasData ? [
-    { label: "Speech",    v: Math.round(last.speech_score),    color: RED  },
-    { label: "Memory",    v: Math.round(last.memory_score),    color: BLU  },
-    { label: "Reaction",  v: Math.round(last.reaction_score),  color: AMB  },
-    { label: "Executive", v: Math.round(last.executive_score), color: PUR  },
-    { label: "Motor",     v: Math.round(last.motor_score),     color: LIME },
+    { label: t("speechDomain", "Speech"),    v: Math.round(last.speech_score),    color: RED  },
+    { label: t("memoryDomain", "Memory"),    v: Math.round(last.memory_score),    color: BLU  },
+    { label: t("reactionDomain", "Reaction"),  v: Math.round(last.reaction_score),  color: AMB  },
+    { label: t("executiveDomain", "Executive"), v: Math.round(last.executive_score), color: PUR  },
+    { label: t("motorDomain", "Motor"),     v: Math.round(last.motor_score),     color: LIME },
   ] : [];
 
   const overallScore = hasData ? Math.round(domains.reduce((s, d) => s + d.v, 0) / domains.length) : null;

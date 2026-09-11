@@ -31,7 +31,7 @@ const Card = ({ title, icon, children, badge, style = {} }) => (
 
 /* SVG Longitudinal Trend Line */
 function LongitudinalTrendChart({ points = [] }) {
-  if (!points.length) return <div style={{ color: "#64748b", fontSize: 13 }}>No trend history available.</div>;
+  if (!points || !points.length) return <div style={{ color: "#64748b", fontSize: 13, padding: "16px 0" }}>No longitudinal trend history available yet.</div>;
   const width = 500;
   const height = 130;
   const padX = 40;
@@ -64,15 +64,15 @@ function LongitudinalTrendChart({ points = [] }) {
         <path d={pathD} fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
         {coords.map((pt, i) => (
           <g key={i}>
-            <circle cx={pt.x} cy={pt.y} r="4.5" fill="#151a14" stroke="#f59e0b" strokeWidth="2" />
+            <circle cx={pt.x} cy={pt.y} r={4.5} fill="#151a14" stroke="#f59e0b" strokeWidth="2" />
             <text x={pt.x} y={pt.y - 9} fill="#f59e0b" fontSize="10" fontWeight="700" textAnchor="middle">{pt.val}</text>
             <text x={pt.x} y={height - 6} fill="#94a3b8" fontSize="10" textAnchor="middle">{pt.label}</text>
           </g>
         ))}
       </svg>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
-        <span>Week 1 (Baseline: {points[0]})</span>
-        <span style={{ color: "#fca5a5" }}>Week 6 (Current: {points[points.length - 1]} · Gradual -12.4% slope)</span>
+        <span>Week 1 (Baseline: {points[0] ?? "--"})</span>
+        <span style={{ color: "#fca5a5" }}>Week {points.length} (Current: {points[points.length - 1] ?? "--"})</span>
       </div>
     </div>
   );
@@ -113,7 +113,7 @@ export default function CareTeamDashboard({ doctor = false }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14, marginBottom: 28 }}>
         <div>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(200,241,53,0.12)", border: "1px solid rgba(200,241,53,0.3)", borderRadius: 999, padding: "4px 12px", fontSize: 11, fontWeight: 700, color: "#c8f135", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-            <span>👥</span> {doctor ? "Clinical Care Portal" : "Family Caregiver Portal"} · SIH PS 26003
+            <span>👥</span> {doctor ? "Clinician Portal" : "Family Caregiver Portal"}
           </div>
           <h1 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 36, margin: "4px 0 8px", color: "#f8fafc" }}>
             {doctor ? "Clinician Supervisory Dashboard" : "Caregiver Support Dashboard"}
@@ -121,9 +121,6 @@ export default function CareTeamDashboard({ doctor = false }) {
           <p style={{ color: "#94a3b8", fontSize: 14, margin: 0, maxWidth: 680 }}>
             Real-time longitudinal cognitive tracking, daily routine compliance, and automated explainable anomaly alerts.
           </p>
-        </div>
-        <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "8px 14px", fontSize: 11, color: "#94a3b8" }}>
-          [SYNTHETIC DEMO DATA — SCREENING AID]
         </div>
       </div>
 
@@ -134,37 +131,49 @@ export default function CareTeamDashboard({ doctor = false }) {
       )}
 
       {/* Patient Selection Bar */}
-      <Card title="Assigned Patients" icon="👤" badge={{ text: `${patients.length} Patient Enrolled`, style: { background: "rgba(255,255,255,0.08)", color: "#e2e8f0" } }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-          {patients.map(p => {
-            const isSelected = detail?.patient_id === p.id;
-            return (
-              <button
-                key={p.id}
-                onClick={() => select(p)}
-                style={{
-                  textAlign: "left",
-                  padding: "16px 18px",
-                  borderRadius: 14,
-                  border: isSelected ? "1px solid #c8f135" : "1px solid rgba(255,255,255,0.08)",
-                  background: isSelected ? "rgba(200,241,53,0.08)" : "rgba(13,17,12,0.7)",
-                  color: "#fff",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  boxShadow: isSelected ? "0 0 20px rgba(200,241,53,0.15)" : "none",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                  <strong style={{ fontSize: 15, color: isSelected ? "#c8f135" : "#f8fafc" }}>{p.name}</strong>
-                  <span style={{ fontSize: 11, color: "#94a3b8" }}>{p.sessions} sessions</span>
-                </div>
-                <div style={{ fontSize: 12, color: "#fca5a5", display: "flex", alignItems: "center", gap: 6 }}>
-                  <span>⚠️</span> {p.screening_signal}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+      <Card title="Assigned Patients" icon="👤" badge={{ text: `${patients.length} Patient${patients.length === 1 ? "" : "s"} Enrolled`, style: { background: "rgba(255,255,255,0.08)", color: "#e2e8f0" } }}>
+        {patients.length === 0 ? (
+          <div style={{ padding: "32px 20px", textAlign: "center", background: "rgba(255,255,255,0.02)", borderRadius: 14, border: "1px dashed rgba(255,255,255,0.1)" }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>🤝</div>
+            <h4 style={{ margin: "0 0 8px", fontSize: 16, color: "#f8fafc" }}>No Patients Linked Yet</h4>
+            <p style={{ margin: 0, color: "#94a3b8", fontSize: 13, maxWidth: 520, marginInline: "auto", lineHeight: 1.6 }}>
+              {doctor
+                ? "When patients request supervision or are assigned to your panel, their screening sessions and anomaly telemetry will appear here."
+                : "When your family member connects their NeuroAid account, their daily routine compliance, memory bank items, and cognitive screening trends will be displayed here in real time."}
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+            {patients.map(p => {
+              const isSelected = detail?.patient_id === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => select(p)}
+                  style={{
+                    textAlign: "left",
+                    padding: "16px 18px",
+                    borderRadius: 14,
+                    border: isSelected ? "1px solid #c8f135" : "1px solid rgba(255,255,255,0.08)",
+                    background: isSelected ? "rgba(200,241,53,0.08)" : "rgba(13,17,12,0.7)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    boxShadow: isSelected ? "0 0 20px rgba(200,241,53,0.15)" : "none",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <strong style={{ fontSize: 15, color: isSelected ? "#c8f135" : "#f8fafc" }}>{p.name}</strong>
+                    <span style={{ fontSize: 11, color: "#94a3b8" }}>{p.sessions} sessions</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#fca5a5", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>⚠️</span> {p.screening_signal}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       {detail && (
@@ -232,15 +241,15 @@ export default function CareTeamDashboard({ doctor = false }) {
               <div style={{ display: "grid", gap: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 10 }}>
                   <span style={{ color: "#cbd5e1", fontSize: 13 }}>Scheduled Reminders</span>
-                  <strong style={{ color: "#c8f135" }}>{detail.routine.length} Active</strong>
+                  <strong style={{ color: "#c8f135" }}>{(detail.routine || []).length} Active</strong>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 10 }}>
                   <span style={{ color: "#cbd5e1", fontSize: 13 }}>Hydration Intake</span>
-                  <strong style={{ color: "#60a5fa" }}>{detail.hydration_glasses} Glasses Logged</strong>
+                  <strong style={{ color: "#60a5fa" }}>{detail.hydration_glasses || 0} Glasses Logged</strong>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 10 }}>
                   <span style={{ color: "#cbd5e1", fontSize: 13 }}>Personal Memory Anchors</span>
-                  <strong style={{ color: "#f472b6" }}>{detail.memory_bank.length} Familiar Items</strong>
+                  <strong style={{ color: "#f472b6" }}>{(detail.memory_bank || []).length} Familiar Items</strong>
                 </div>
               </div>
             </Card>

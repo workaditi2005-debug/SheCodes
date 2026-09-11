@@ -25,11 +25,13 @@ from core.progress_tracker import compute_trend
 # ── Level Benchmarks & Therapeutic Target Parameters ──────────────────────────
 
 BENCHMARKS = {
-    # Default benchmark response times per level (in seconds)
+    # Configured benchmark response times per level (in seconds)
     "response_time_benchmarks": {
-        1: 3.5,  # Level 1: Gentle pacing
-        2: 2.8,  # Level 2: Standard pacing
-        3: 2.0,  # Level 3: Advanced pacing
+        1: 3.5,  # Level 1: Gentle pacing (Easy)
+        2: 2.8,  # Level 2: Standard pacing (Medium)
+        3: 2.2,  # Level 3: Hard pacing
+        4: 1.8,  # Level 4: Pro pacing
+        5: 1.4,  # Level 5: Advance pacing
     },
     # Accuracy thresholds
     "accuracy_promotion_threshold": 0.85,
@@ -142,8 +144,8 @@ class AdaptiveDifficultyEngine:
             "clinical_rationale": "..."
         }
         """
-        # Clamp previous level to [1, 3]
-        prev_level = max(1, min(3, int(previous_level)))
+        # Clamp previous level to [1, 5]
+        prev_level = max(1, min(5, int(previous_level)))
 
         # Normalize metrics to valid numeric bounds
         acc = max(0.0, min(1.0, float(accuracy)))
@@ -179,7 +181,7 @@ class AdaptiveDifficultyEngine:
 
         # 1. Check for Promotion
         can_promote = (
-            prev_level < 3
+            prev_level < 5
             and comp >= BENCHMARKS["completion_promotion_threshold"]
             and acc >= BENCHMARKS["accuracy_promotion_threshold"]
             and err <= BENCHMARKS["error_rate_promotion_threshold"]
@@ -244,7 +246,7 @@ class AdaptiveDifficultyEngine:
             new_level = prev_level
             adjustment = "maintain"
 
-            if prev_level == 3 and acc >= BENCHMARKS["accuracy_promotion_threshold"]:
+            if prev_level == 5 and acc >= BENCHMARKS["accuracy_promotion_threshold"]:
                 reasons.append("mastery maintained at highest level")
                 reasons.append("stable response time")
                 rationale = "Outstanding performance sustained at highest challenge level."

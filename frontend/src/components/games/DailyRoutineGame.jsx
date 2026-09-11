@@ -1,12 +1,25 @@
 import { useState, useEffect, useRef } from "react";
 import GameShell from "./GameShell";
 import { DAILY_ROUTINE_TASKS } from "../../data/gameContent";
+import { useI18n } from "../../i18n/LanguageContext";
 import { playTapSound, playMatchSound, playGentleMissSound } from "../../utils/gameAudio";
 import { submitGameSession, getGameRecommendation } from "../../services/api";
 
+function getCardCount(lvl) {
+  switch (lvl) {
+    case 1: return 3; // Easy (3 steps)
+    case 2: return 4; // Medium (4 steps)
+    case 3: return 5; // Hard (5 steps)
+    case 4: return 6; // Pro (6 steps)
+    case 5: return 6; // Advance (6 steps speed challenge)
+    default: return 3;
+  }
+}
+
 export default function DailyRoutineGame({ setPage }) {
+  const { lang } = useI18n();
   const [level, setLevel] = useState(1);
-  const cardCount = level === 1 ? 3 : level === 2 ? 4 : 5;
+  const cardCount = getCardCount(level);
 
   const [targetTasks, setTargetTasks] = useState([]);
   const [availableCards, setAvailableCards] = useState([]);
@@ -26,7 +39,7 @@ export default function DailyRoutineGame({ setPage }) {
   useEffect(() => {
     getGameRecommendation("daily_routine")
       .then((res) => {
-        if (res && res.recommended_level && [1, 2, 3].includes(res.recommended_level)) {
+        if (res && res.recommended_level && [1, 2, 3, 4, 5].includes(res.recommended_level)) {
           setLevel(res.recommended_level);
         }
       })
@@ -34,7 +47,7 @@ export default function DailyRoutineGame({ setPage }) {
   }, []);
 
   function initLevel(lvl = level) {
-    const count = lvl === 1 ? 3 : lvl === 2 ? 4 : 5;
+    const count = getCardCount(lvl);
     const tasks = DAILY_ROUTINE_TASKS.slice(0, count);
     setTargetTasks(tasks);
 
@@ -169,9 +182,9 @@ export default function DailyRoutineGame({ setPage }) {
         cognitive_domain: "Daily Routine & Orientation",
         adaptive_difficulty: {
           previous_level: level,
-          new_level: finalMistakes === 0 && level < 3 ? level + 1 : level,
+          new_level: finalMistakes === 0 && level < 5 ? level + 1 : level,
           reason: ["accuracy above target", "stable response time"],
-          adjustment: finalMistakes === 0 && level < 3 ? "increase" : "maintain",
+          adjustment: finalMistakes === 0 && level < 5 ? "increase" : "maintain",
         },
       });
     }
@@ -204,7 +217,7 @@ export default function DailyRoutineGame({ setPage }) {
       isCompleted={isCompleted}
       completionResult={completionResult}
       onPlayAgain={(nextLvl) => {
-        if (nextLvl && [1, 2, 3].includes(nextLvl)) {
+        if (nextLvl && [1, 2, 3, 4, 5].includes(nextLvl)) {
           setLevel(nextLvl);
         } else {
           initLevel(level);
@@ -226,6 +239,8 @@ export default function DailyRoutineGame({ setPage }) {
             }}
           >
             {placedSlots.map((card, idx) => {
+              const cardTitle = card ? (card.title[lang] || card.title.en) : "";
+
               return (
                 <div
                   key={idx}
@@ -270,7 +285,7 @@ export default function DailyRoutineGame({ setPage }) {
                           lineHeight: 1.2,
                         }}
                       >
-                        {card.title.en}
+                        {cardTitle}
                       </span>
                       <span style={{ fontSize: 10, color: "#9ca3af", marginTop: 2 }}>
                         {card.timeHint}
@@ -301,41 +316,45 @@ export default function DailyRoutineGame({ setPage }) {
               flexWrap: "wrap",
             }}
           >
-            {availableCards.map((card) => (
-              <button
-                key={card.id}
-                onClick={() => handleSelectCard(card)}
-                style={{
-                  width: 130,
-                  padding: "16px 12px",
-                  borderRadius: 18,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background: "rgba(255,255,255,0.06)",
-                  cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
-                  transition: "transform 0.15s ease",
-                }}
-              >
-                <span style={{ fontSize: 40, marginBottom: 6 }}>{card.icon}</span>
-                <span
+            {availableCards.map((card) => {
+              const cardTitle = card.title[lang] || card.title.en;
+
+              return (
+                <button
+                  key={card.id}
+                  onClick={() => handleSelectCard(card)}
                   style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#fff",
-                    textAlign: "center",
-                    lineHeight: 1.2,
+                    width: 130,
+                    padding: "16px 12px",
+                    borderRadius: 18,
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    background: "rgba(255,255,255,0.06)",
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
+                    transition: "transform 0.15s ease",
                   }}
                 >
-                  {card.title.en}
-                </span>
-                <span style={{ fontSize: 11, color: "#fb923c", fontWeight: 700, marginTop: 4 }}>
-                  {card.timeHint}
-                </span>
-              </button>
-            ))}
+                  <span style={{ fontSize: 40, marginBottom: 6 }}>{card.icon}</span>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#fff",
+                      textAlign: "center",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {cardTitle}
+                  </span>
+                  <span style={{ fontSize: 11, color: "#fb923c", fontWeight: 700, marginTop: 4 }}>
+                    {card.timeHint}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

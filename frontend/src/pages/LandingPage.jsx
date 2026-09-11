@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import LanguageSelector from "../components/common/LanguageSelector";
 
 const C = {
   bg:      "#080808",
@@ -147,6 +148,7 @@ function NavPortal({ setView, open, setOpen, onStartSihDemo }) {
             {open===name && <Dropdown name={name} />}
           </div>
         ))}
+        <LanguageSelector />
         <button
           onClick={onStartSihDemo}
           style={{

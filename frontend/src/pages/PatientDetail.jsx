@@ -263,9 +263,6 @@ export default function PatientDetail({ patient, setPage }) {
                   Multi-Domain Biomarker Analysis & Signal Confidence
                 </div>
               </div>
-              <span style={{ fontSize: 11, color: "#94a3b8", background: "rgba(255,255,255,0.05)", padding: "4px 10px", borderRadius: 8 }}>
-                [SYNTHETIC DEMO DATA]
-              </span>
             </div>
 
             {/* Quality & Confidence */}

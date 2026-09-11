@@ -1,12 +1,25 @@
 import { useState, useEffect, useRef } from "react";
 import GameShell from "./GameShell";
 import { PATTERN_COMPLETION_PUZZLES } from "../../data/gameContent";
+import { useI18n } from "../../i18n/LanguageContext";
 import { playTapSound, playMatchSound, playGentleMissSound } from "../../utils/gameAudio";
 import { submitGameSession, getGameRecommendation } from "../../services/api";
 
+function getTotalPuzzles(lvl) {
+  switch (lvl) {
+    case 1: return 3; // Easy
+    case 2: return 4; // Medium
+    case 3: return 5; // Hard
+    case 4: return 6; // Pro
+    case 5: return 8; // Advance
+    default: return 3;
+  }
+}
+
 export default function PatternCompletionGame({ setPage }) {
+  const { lang } = useI18n();
   const [level, setLevel] = useState(1);
-  const totalRounds = level === 1 ? 3 : level === 2 ? 4 : 4;
+  const totalRounds = getTotalPuzzles(level);
 
   const [currentRound, setCurrentRound] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState(null);
@@ -26,7 +39,7 @@ export default function PatternCompletionGame({ setPage }) {
   useEffect(() => {
     getGameRecommendation("pattern_completion")
       .then((res) => {
-        if (res && res.recommended_level && [1, 2, 3].includes(res.recommended_level)) {
+        if (res && res.recommended_level && [1, 2, 3, 4, 5].includes(res.recommended_level)) {
           setLevel(res.recommended_level);
         }
       })
@@ -137,9 +150,9 @@ export default function PatternCompletionGame({ setPage }) {
         cognitive_domain: "Executive Function & Patterns",
         adaptive_difficulty: {
           previous_level: level,
-          new_level: finalMistakes <= 1 && level < 3 ? level + 1 : level,
+          new_level: finalMistakes <= 1 && level < 5 ? level + 1 : level,
           reason: ["accuracy above target", "stable response time"],
-          adjustment: finalMistakes <= 1 && level < 3 ? "increase" : "maintain",
+          adjustment: finalMistakes <= 1 && level < 5 ? "increase" : "maintain",
         },
       });
     }
@@ -168,7 +181,7 @@ export default function PatternCompletionGame({ setPage }) {
       isCompleted={isCompleted}
       completionResult={completionResult}
       onPlayAgain={(nextLvl) => {
-        if (nextLvl && [1, 2, 3].includes(nextLvl)) {
+        if (nextLvl && [1, 2, 3, 4, 5].includes(nextLvl)) {
           setLevel(nextLvl);
         } else {
           initLevel(level);
@@ -183,7 +196,7 @@ export default function PatternCompletionGame({ setPage }) {
 
         {/* Prompt */}
         <h3 style={{ fontSize: 20, color: "#fff", fontWeight: 800, marginBottom: 24 }}>
-          {puzzle.prompt.en}
+          {puzzle.prompt[lang] || puzzle.prompt.en}
         </h3>
 
         {/* Sequence Row with Question Mark Slot */}
@@ -250,6 +263,7 @@ export default function PatternCompletionGame({ setPage }) {
               const isSelected = selectedIdx === idx;
               const isCorrect = isSelected && feedbackState === "correct";
               const isWrong = isSelected && feedbackState === "wrong";
+              const optLabel = opt.label[lang] || opt.label.en;
 
               return (
                 <button
@@ -286,7 +300,7 @@ export default function PatternCompletionGame({ setPage }) {
                       color: isCorrect ? "#10b981" : isWrong ? "#ef4444" : "#e5e7eb",
                     }}
                   >
-                    {opt.label.en}
+                    {optLabel}
                   </span>
                 </button>
               );

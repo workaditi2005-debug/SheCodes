@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import GameShell from "./GameShell";
 import GameCompletionModal from "./GameCompletionModal";
 import { CULTURAL_ITEMS } from "../../data/gameContent";
+import { useI18n } from "../../i18n/LanguageContext";
 import {
   playTapSound,
   playMatchSound,
@@ -20,9 +21,21 @@ function buildCards(pairCount) {
   return deck.sort(() => Math.random() - 0.5);
 }
 
+function getPairCount(lvl) {
+  switch (lvl) {
+    case 1: return 3;  // Easy: 6 cards (3x2 grid)
+    case 2: return 4;  // Medium: 8 cards (4x2 grid)
+    case 3: return 6;  // Hard: 12 cards (4x3 grid)
+    case 4: return 8;  // Pro: 16 cards (4x4 grid)
+    case 5: return 10; // Advance: 20 cards (5x4 grid)
+    default: return 3;
+  }
+}
+
 export default function MemoryMatchGame({ setPage }) {
+  const { lang } = useI18n();
   const [level, setLevel] = useState(1);
-  const pairCount = level === 1 ? 3 : level === 2 ? 4 : 6;
+  const pairCount = getPairCount(level);
 
   const [cards, setCards] = useState(() => buildCards(pairCount));
   const [flipped, setFlipped] = useState([]); // indices
@@ -43,7 +56,7 @@ export default function MemoryMatchGame({ setPage }) {
   useEffect(() => {
     getGameRecommendation("memory_match")
       .then((res) => {
-        if (res && res.recommended_level && [1, 2, 3].includes(res.recommended_level)) {
+        if (res && res.recommended_level && [1, 2, 3, 4, 5].includes(res.recommended_level)) {
           setLevel(res.recommended_level);
         }
       })
@@ -52,7 +65,7 @@ export default function MemoryMatchGame({ setPage }) {
 
   // Initialize or restart level
   function initLevel(lvl = level) {
-    const pairs = lvl === 1 ? 3 : lvl === 2 ? 4 : 6;
+    const pairs = getPairCount(lvl);
     setCards(buildCards(pairs));
     setFlipped([]);
     setMatched([]);
@@ -164,9 +177,9 @@ export default function MemoryMatchGame({ setPage }) {
         cognitive_domain: "Visuospatial & Memory",
         adaptive_difficulty: {
           previous_level: level,
-          new_level: finalMistakes <= 2 && level < 3 ? level + 1 : level,
+          new_level: finalMistakes <= 2 && level < 5 ? level + 1 : level,
           reason: ["accuracy above target", "stable response time"],
-          adjustment: finalMistakes <= 2 && level < 3 ? "increase" : "maintain",
+          adjustment: finalMistakes <= 2 && level < 5 ? "increase" : "maintain",
         },
       });
     }
@@ -191,6 +204,20 @@ export default function MemoryMatchGame({ setPage }) {
     }
   }
 
+  const gridCols =
+    level === 1
+      ? "repeat(3, 1fr)"
+      : level === 2
+      ? "repeat(4, 1fr)"
+      : level === 3
+      ? "repeat(4, 1fr)"
+      : level === 4
+      ? "repeat(4, 1fr)"
+      : "repeat(5, 1fr)";
+
+  const maxBoardWidth =
+    level === 1 ? 520 : level === 2 ? 640 : level === 3 ? 720 : level === 4 ? 760 : 840;
+
   return (
     <GameShell
       gameId="memory_match"
@@ -209,7 +236,7 @@ export default function MemoryMatchGame({ setPage }) {
       isCompleted={isCompleted}
       completionResult={completionResult}
       onPlayAgain={(nextLvl) => {
-        if (nextLvl && [1, 2, 3].includes(nextLvl)) {
+        if (nextLvl && [1, 2, 3, 4, 5].includes(nextLvl)) {
           setLevel(nextLvl);
         } else {
           initLevel(level);
@@ -219,17 +246,18 @@ export default function MemoryMatchGame({ setPage }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns:
-            level === 1 ? "repeat(3, 1fr)" : level === 2 ? "repeat(4, 1fr)" : "repeat(4, 1fr)",
-          gap: 16,
+          gridTemplateColumns: gridCols,
+          gap: level >= 4 ? 12 : 16,
           width: "100%",
-          maxWidth: level === 1 ? 520 : level === 2 ? 640 : 720,
+          maxWidth: maxBoardWidth,
           margin: "0 auto",
         }}
       >
         {cards.map((card, idx) => {
           const isFlipped = flipped.includes(idx) || matched.includes(card.uid);
           const isCardMatched = matched.includes(card.uid);
+          const cardText =
+            typeof card.label === "object" ? card.label[lang] || card.label.en : card.label;
 
           return (
             <button
@@ -238,7 +266,7 @@ export default function MemoryMatchGame({ setPage }) {
               disabled={isFlipped || lockBoardRef.current}
               style={{
                 aspectRatio: "1 / 1.15",
-                borderRadius: 20,
+                borderRadius: level >= 4 ? 14 : 20,
                 border: isCardMatched
                   ? "2px solid #10b981"
                   : isFlipped
@@ -259,38 +287,43 @@ export default function MemoryMatchGame({ setPage }) {
                 boxShadow: isCardMatched
                   ? "0 0 24px rgba(16,185,129,0.35)"
                   : "0 6px 16px rgba(0,0,0,0.4)",
-                padding: 10,
+                padding: level >= 4 ? 6 : 10,
               }}
             >
               {isFlipped ? (
                 <>
-                  <span style={{ fontSize: level === 3 ? 36 : 46, marginBottom: 4 }}>
+                  <span
+                    style={{
+                      fontSize: level >= 5 ? 28 : level === 4 ? 32 : level === 3 ? 36 : 46,
+                      marginBottom: 4,
+                    }}
+                  >
                     {card.icon}
                   </span>
                   <span
                     style={{
-                      fontSize: level === 3 ? 11 : 12,
+                      fontSize: level >= 4 ? 10 : level === 3 ? 11 : 12,
                       fontWeight: 700,
                       color: isCardMatched ? "#34d399" : "#e5e7eb",
                       textAlign: "center",
                       lineHeight: 1.2,
                     }}
                   >
-                    {card.label}
+                    {cardText}
                   </span>
                 </>
               ) : (
                 <div
                   style={{
-                    width: 38,
-                    height: 38,
+                    width: level >= 4 ? 30 : 38,
+                    height: level >= 4 ? 30 : 38,
                     borderRadius: "50%",
                     background: "rgba(255,255,255,0.06)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     color: "#9ca3af",
-                    fontSize: 20,
+                    fontSize: level >= 4 ? 16 : 20,
                     fontWeight: 900,
                   }}
                 >

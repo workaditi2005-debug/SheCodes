@@ -234,11 +234,10 @@ def logout(authorization: str = Header(...)):
     token = authorization.replace("Bearer ", "").strip()
     sessions = _get_sessions()
 
-    if token not in sessions:
-        raise HTTPException(status_code=401, detail="Invalid or expired session.")
+    if token in sessions:
+        del sessions[token]
+        _save_sessions(sessions)
 
-    del sessions[token]
-    _save_sessions(sessions)
     return {"message": "Logged out successfully."}
 
 

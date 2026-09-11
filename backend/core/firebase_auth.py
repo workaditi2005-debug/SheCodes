@@ -1,7 +1,7 @@
 """
 core/firebase_auth.py — Real Firebase Authentication Verification Layer
 ========================================================================
-Verifies Firebase ID tokens issued for the real project: NeuroAid-SIH-2026.
+Verifies Firebase ID tokens issued for the real project: neuroaid-sih-2026.
 Extracts verified Firebase identity, maps firebase_uid to internal NeuroAid
 users, enforces RBAC, and securely isolates deterministic SIH demo mode.
 """
@@ -40,7 +40,7 @@ def init_firebase_admin() -> Optional[firebase_admin.App]:
     """
     Initialize Firebase Admin SDK exactly once.
     Checks for service-account credentials path or Application Default Credentials (ADC).
-    Falls back gracefully to public-key JWT verification for NeuroAid-SIH-2026 if local credentials
+    Falls back gracefully to public-key JWT verification for neuroaid-sih-2026 if local credentials
     are not yet configured.
     """
     global _firebase_app, _has_admin_credentials
@@ -123,12 +123,16 @@ def extract_bearer_token(authorization: Optional[str]) -> str:
 
 def verify_firebase_id_token(token: str) -> Dict[str, Any]:
     """
-    Verify a Firebase ID token issued for the real project: NeuroAid-SIH-2026.
+    Verify a Firebase ID token issued for the real project: neuroaid-sih-2026.
     Validates signature, expiration, issuer, and project audience.
-    Rejects invalid, expired, or foreign-project tokens.
+    Rejects invalid, expired, foreign-project, or malformed tokens.
     """
-    if not token or not isinstance(token, str):
+    if not token or not isinstance(token, str) or not token.strip():
         raise HTTPException(status_code=401, detail="Invalid authentication token format.")
+
+    segments = token.strip().split(".")
+    if len(segments) != 3:
+        raise HTTPException(status_code=401, detail="Malformed authentication token: expected a 3-part JWT.")
 
     expected_project = settings.firebase_project_id.strip()
 
@@ -167,7 +171,9 @@ def verify_firebase_id_token(token: str) -> Dict[str, Any]:
         if "expired" in err_msg:
             raise HTTPException(status_code=401, detail="Authentication token has expired. Please sign in again.")
         if "audience" in err_msg or "project" in err_msg:
-            raise HTTPException(status_code=401, detail="Token not issued for this Firebase project.")
+            raise HTTPException(status_code=401, detail=f"Token not issued for this Firebase project. Expected '{expected_project}'.")
+        if "issuer" in err_msg:
+            raise HTTPException(status_code=401, detail=f"Token from wrong issuer. Expected 'https://securetoken.google.com/{expected_project}'.")
         raise HTTPException(status_code=401, detail="Invalid authentication token.")
     except Exception as exc:
         log_error(f"Public token verification error: {exc.__class__.__name__}")
@@ -175,16 +181,30 @@ def verify_firebase_id_token(token: str) -> Dict[str, Any]:
 
 
 def _validate_claims_project(claims: Dict[str, Any], expected_project: str) -> None:
-    """Ensure token belongs strictly to the real project NeuroAid-SIH-2026."""
-    aud = claims.get("aud")
-    firebase_meta = claims.get("firebase", {})
-    project_id = firebase_meta.get("project_id") or aud
-
-    if aud != expected_project and project_id != expected_project:
+    """Ensure token belongs strictly to the real project neuroaid-sih-2026."""
+    expected_issuer = f"https://securetoken.google.com/{expected_project}"
+    iss = claims.get("iss")
+    if iss != expected_issuer:
         raise HTTPException(
             status_code=401,
-            detail=f"Token from wrong Firebase project. Expected '{expected_project}'.",
+            detail=f"Token from wrong issuer. Expected '{expected_issuer}', got '{iss}'.",
         )
+
+    aud = claims.get("aud")
+    if aud != expected_project:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Token not issued for this Firebase project audience. Expected '{expected_project}', got '{aud}'.",
+        )
+
+    firebase_meta = claims.get("firebase")
+    if isinstance(firebase_meta, dict):
+        project_id = firebase_meta.get("project_id")
+        if project_id and project_id != expected_project:
+            raise HTTPException(
+                status_code=401,
+                detail=f"Token from wrong Firebase project. Expected '{expected_project}', got '{project_id}'.",
+            )
 
 
 def resolve_user_by_firebase_claims(claims: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -295,3 +315,28 @@ def require_care_team(authorization: Optional[str] = Header(None)) -> Dict[str, 
     if user.get("role") not in {"doctor", "caregiver", "admin"}:
         raise HTTPException(status_code=403, detail="Care-team access required.")
     return user
+
+
+def require_admin(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
+    """Ensure authenticated caller holds verified 'admin' role in NeuroAid."""
+    user = get_current_user(authorization)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+    return user
+
+
+def require_patient(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
+    """Ensure authenticated caller holds verified 'patient' role in NeuroAid."""
+    user = get_current_user(authorization)
+    if user.get("role") != "patient":
+        raise HTTPException(status_code=403, detail="Patient privileges required.")
+    return user
+
+
+def require_caregiver(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
+    """Ensure authenticated caller holds verified 'caregiver' role in NeuroAid."""
+    user = get_current_user(authorization)
+    if user.get("role") != "caregiver":
+        raise HTTPException(status_code=403, detail="Caregiver privileges required.")
+    return user
+

@@ -147,7 +147,7 @@ export default function Sidebar({ role, page, setPage, setView }) {
 
       <div style={{ padding: "16px 24px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <button
-          onClick={() => setView("landing")}
+          onClick={() => setView("logout")}
           style={{ background: "transparent", border: "none", color: T.creamFaint, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}
         >
           ← Sign out

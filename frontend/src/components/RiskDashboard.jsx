@@ -217,6 +217,7 @@ export function Sidebar({ role, page, setPage, setView, onLogout, isMobile = fal
     { id:"tap",         label:"Motor Tap",     icon:"⬤" },
     { id:"results",     label:"Results",       icon:"◆" },
     { id:"progress",    label:"Progress",      icon:"↗" },
+    { id:"doctors",     label:"My Doctor",     icon:"🩺" },
     { id:"messages",    label:"Messages",      icon:"✉", badge: unread },
   ];
   const dNav = [
@@ -238,13 +239,13 @@ export function Sidebar({ role, page, setPage, setView, onLogout, isMobile = fal
   }
 
   function handleLogoClick() {
-    setPage(role === "doctor" ? "doctor-dashboard" : "dashboard");
+    setPage(role === "doctor" ? "doctor-dashboard" : role === "caregiver" ? "caregiver-dashboard" : "dashboard");
     if (isMobile && onClose) onClose();
   }
 
   function handleSignOut() {
     if (onLogout) onLogout();
-    else setView("landing");
+    else if (setView) setView("logout");
     if (isMobile && onClose) onClose();
   }
 
@@ -313,7 +314,7 @@ export function Sidebar({ role, page, setPage, setView, onLogout, isMobile = fal
           <div style={{ width:32, height:32, borderRadius:"50%", background:`rgba(200,241,53,0.15)`, border:`1px solid ${LIME}44`, display:"flex", alignItems:"center", justifyContent:"center", color:LIME, fontWeight:700, fontSize:12, flexShrink:0 }}>{initials}</div>
           <div style={{ overflow:"hidden" }}>
             <div style={{ fontSize:13, color:"#fff", fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{displayName}</div>
-            <div style={{ fontSize:10, color:"#555", textTransform:"uppercase", letterSpacing:1 }}>{role === "doctor" ? "Doctor" : "Patient"}</div>
+            <div style={{ fontSize:10, color:"#555", textTransform:"uppercase", letterSpacing:1 }}>{role === "doctor" ? "Doctor" : role === "caregiver" ? "Caregiver" : "Patient"}</div>
           </div>
         </div>
         <button onClick={handleSignOut} style={{ background:"transparent", border:"none", color:"#444", fontSize:13, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", transition:"color 0.2s" }}

@@ -1,23 +1,29 @@
 """
 test_firebase_auth.py — Comprehensive Test Suite for Backend Firebase Authentication
 =====================================================================================
-Covers all 14 Prompt 1D verification requirements:
- 1. Missing Authorization header → 401
- 2. Malformed Authorization header → 401
- 3. Invalid Firebase token → 401
- 4. Expired Firebase token → 401
- 5. Token from wrong Firebase project → rejected (401)
- 6. Valid Firebase identity → accepted
- 7. Unknown Firebase UID → handled safely (401 profile not found)
- 8. Existing NeuroAid user with firebase_uid → correctly resolved
- 9. Patient RBAC enforcement
-10. Caregiver RBAC enforcement
-11. Doctor RBAC enforcement
-12. Admin RBAC enforcement
-13. Cross-patient access → rejected (403)
-14. SIH demo mode → isolated and works deterministically
-+ Placeholder token rejection verification
-+ Google doctor privilege escalation rejection
+Covers all Firebase project ID and authentication verification requirements:
+ 1. Authoritative Firebase project ID is neuroaid-sih-2026
+ 2. Missing Authorization header → 401/422
+ 3. Malformed Authorization header → 401
+ 4. Malformed JWT structure (not 3-part) → 401
+ 5. Invalid / unverified Firebase token → 401
+ 6. Expired Firebase token → 401
+ 7. Token from wrong Firebase project → rejected (401)
+ 8. Token with wrong audience → rejected (401)
+ 9. Token with wrong issuer → rejected (401)
+10. Token with project display name "NeuroAid-SIH-2026" instead of project ID → rejected (401)
+11. Valid Firebase identity for neuroaid-sih-2026 → accepted (200)
+12. Unknown Firebase UID → handled safely (401 profile not found)
+13. Existing NeuroAid user with firebase_uid → correctly resolved
+14. Patient RBAC enforcement
+15. Caregiver RBAC enforcement
+16. Doctor RBAC enforcement
+17. Admin RBAC enforcement
+18. Cross-patient access → rejected (403)
+19. SIH demo mode → isolated and works deterministically (patient, doctor, caregiver)
+20. Placeholder password rejection verification
+21. Google doctor privilege escalation rejection
+22. Direct unit validation of require_admin, require_patient, require_caregiver
 """
 from __future__ import annotations
 
@@ -25,6 +31,7 @@ import os
 import uuid
 import pytest
 from unittest.mock import patch, MagicMock
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from main import app
@@ -34,25 +41,40 @@ from core.firebase_auth import (
     SIH_DEMO_TOKENS,
     extract_bearer_token,
     verify_firebase_id_token,
+    _validate_claims_project,
     resolve_user_by_firebase_claims,
+    require_admin,
+    require_patient,
+    require_caregiver,
+    require_doctor,
+    require_care_team,
 )
 from services import auth_service
 
 client = TestClient(app)
 
-PROJECT_ID = settings.firebase_project_id  # "NeuroAid-SIH-2026"
+PROJECT_ID = settings.firebase_project_id  # authoritative: "neuroaid-sih-2026"
 
 
 # ── Fixtures & Mock Helpers ───────────────────────────────────────────────────
 
-def make_mock_claims(uid: str, email: str, project_id: str = PROJECT_ID, is_google: bool = False):
+def make_mock_claims(
+    uid: str,
+    email: str,
+    project_id: str = PROJECT_ID,
+    is_google: bool = False,
+    aud: str | None = None,
+    iss: str | None = None,
+):
+    target_aud = aud if aud is not None else project_id
+    target_iss = iss if iss is not None else f"https://securetoken.google.com/{project_id}"
     return {
         "uid": uid,
         "sub": uid,
         "email": email,
         "name": f"User {uid[:6]}",
-        "aud": project_id,
-        "iss": f"https://securetoken.google.com/{project_id}",
+        "aud": target_aud,
+        "iss": target_iss,
         "firebase": {
             "sign_in_provider": "google.com" if is_google else "password",
             "project_id": project_id,
@@ -60,11 +82,16 @@ def make_mock_claims(uid: str, email: str, project_id: str = PROJECT_ID, is_goog
     }
 
 
+# ── Test 0: Verify Authoritative Project ID ──────────────────────────────────
+def test_authoritative_project_id_is_neuroaid_sih_2026():
+    assert settings.firebase_project_id == "neuroaid-sih-2026"
+    assert PROJECT_ID == "neuroaid-sih-2026"
+
+
 # ── Test 1: Missing Authorization Header ─────────────────────────────────────
-def test_1_missing_authorization_header_returns_401():
+def test_1_missing_authorization_header_returns_401_or_422():
     response = client.get("/api/auth/me")
-    assert response.status_code == 422 or response.status_code == 401
-    # FastAPI requires header, returning either 422 missing header or 401
+    assert response.status_code in (401, 422)
 
 
 # ── Test 2: Malformed Authorization Header ───────────────────────────────────
@@ -82,17 +109,33 @@ def test_2_malformed_authorization_header_returns_401():
     assert res3.status_code == 401
 
 
-# ── Test 3: Invalid Firebase Token ───────────────────────────────────────────
-def test_3_invalid_firebase_token_returns_401():
-    res = client.get("/api/auth/me", headers={"Authorization": "Bearer invalid.jwt.token"})
+# ── Test 3: Malformed JWT Structure (not 3 parts) ────────────────────────────
+def test_3_malformed_jwt_structure_rejected():
+    with pytest.raises(HTTPException) as exc_info:
+        verify_firebase_id_token("not-a-valid-jwt")
+    assert exc_info.value.status_code == 401
+    assert "malformed" in exc_info.value.detail.lower()
+
+    with pytest.raises(HTTPException) as exc_info2:
+        verify_firebase_id_token("header.payload")  # only 2 parts
+    assert exc_info2.value.status_code == 401
+    assert "malformed" in exc_info2.value.detail.lower()
+
+    with pytest.raises(HTTPException) as exc_info3:
+        verify_firebase_id_token("")  # empty
+    assert exc_info3.value.status_code == 401
+
+
+# ── Test 4: Invalid Firebase Token ───────────────────────────────────────────
+def test_4_invalid_firebase_token_returns_401():
+    res = client.get("/api/auth/me", headers={"Authorization": "Bearer invalid.fake.token"})
     assert res.status_code == 401
     assert "invalid" in res.json().get("detail", "").lower() or "unauthorized" in res.json().get("detail", "").lower()
 
 
-# ── Test 4: Expired Firebase Token ───────────────────────────────────────────
-def test_4_expired_firebase_token_returns_401():
+# ── Test 5: Expired Firebase Token ───────────────────────────────────────────
+def test_5_expired_firebase_token_returns_401():
     with patch("core.firebase_auth.verify_firebase_id_token") as mock_verify:
-        from fastapi import HTTPException
         mock_verify.side_effect = HTTPException(status_code=401, detail="Authentication token has expired. Please sign in again.")
 
         res = client.get("/api/auth/me", headers={"Authorization": "Bearer expired.jwt.token"})
@@ -100,19 +143,85 @@ def test_4_expired_firebase_token_returns_401():
         assert "expired" in res.json().get("detail", "").lower()
 
 
-# ── Test 5: Token from Wrong Firebase Project ────────────────────────────────
-def test_5_token_from_wrong_project_rejected():
+# ── Test 6: Token from Wrong Firebase Project ────────────────────────────────
+def test_6_token_from_wrong_project_rejected():
+    # Direct claims validator check
+    wrong_project_claims = make_mock_claims(
+        uid="u-wrong-proj",
+        email="wrong@example.com",
+        project_id="foreign-project-1234",
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        _validate_claims_project(wrong_project_claims, expected_project="neuroaid-sih-2026")
+    assert exc_info.value.status_code == 401
+
+    # API endpoint check with mock
     with patch("core.firebase_auth.verify_firebase_id_token") as mock_verify:
-        from fastapi import HTTPException
-        mock_verify.side_effect = HTTPException(status_code=401, detail="Token from wrong Firebase project.")
+        mock_verify.side_effect = HTTPException(status_code=401, detail="Token not issued for this Firebase project.")
 
         res = client.get("/api/auth/me", headers={"Authorization": "Bearer foreign.project.token"})
         assert res.status_code == 401
-        assert "wrong firebase project" in res.json().get("detail", "").lower()
+        assert "not issued for this firebase project" in res.json().get("detail", "").lower() or "wrong" in res.json().get("detail", "").lower()
 
 
-# ── Test 6: Valid Firebase Identity Accepted ─────────────────────────────────
-def test_6_valid_firebase_identity_accepted():
+# ── Test 7: Wrong Audience Rejected ──────────────────────────────────────────
+def test_7_wrong_audience_rejected():
+    wrong_aud_claims = make_mock_claims(
+        uid="u-wrong-aud",
+        email="aud@example.com",
+        project_id="neuroaid-sih-2026",
+        aud="malicious-client-id",
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        _validate_claims_project(wrong_aud_claims, expected_project="neuroaid-sih-2026")
+    assert exc_info.value.status_code == 401
+    assert "audience" in exc_info.value.detail.lower()
+
+
+# ── Test 8: Wrong Issuer Rejected ────────────────────────────────────────────
+def test_8_wrong_issuer_rejected():
+    wrong_iss_claims = make_mock_claims(
+        uid="u-wrong-iss",
+        email="iss@example.com",
+        project_id="neuroaid-sih-2026",
+        iss="https://accounts.google.com",
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        _validate_claims_project(wrong_iss_claims, expected_project="neuroaid-sih-2026")
+    assert exc_info.value.status_code == 401
+    assert "issuer" in exc_info.value.detail.lower()
+
+
+# ── Test 9: Display Name NeuroAid-SIH-2026 Rejected as Audience/Project ID ────
+def test_9_project_display_name_rejected_as_audience():
+    # If a token has aud="NeuroAid-SIH-2026" (the display name) instead of "neuroaid-sih-2026",
+    # it must be strictly rejected.
+    display_name_claims = {
+        "uid": "u-display-name",
+        "sub": "u-display-name",
+        "email": "display@example.com",
+        "aud": "NeuroAid-SIH-2026",
+        "iss": "https://securetoken.google.com/NeuroAid-SIH-2026",
+        "firebase": {"project_id": "NeuroAid-SIH-2026"},
+    }
+    with pytest.raises(HTTPException) as exc_info:
+        _validate_claims_project(display_name_claims, expected_project="neuroaid-sih-2026")
+    assert exc_info.value.status_code == 401
+
+
+# ── Test 10: Valid Firebase Claims for neuroaid-sih-2026 Accepted ────────────
+def test_10_valid_claims_for_neuroaid_sih_2026_accepted():
+    valid_claims = make_mock_claims(
+        uid="u-valid-sih",
+        email="valid@neuroaid.internal",
+        project_id="neuroaid-sih-2026",
+    )
+    # Should not raise any exception
+    _validate_claims_project(valid_claims, expected_project="neuroaid-sih-2026")
+
+
+# ── Test 11: Valid Firebase Identity Accepted on /api/auth/me ────────────────
+def test_11_valid_firebase_identity_accepted():
     test_uid = f"fb-test-uid-{uuid.uuid4().hex[:8]}"
     test_email = f"test_{uuid.uuid4().hex[:6]}@example.com"
     internal_id = f"neuroaid-user-{uuid.uuid4().hex[:8]}"
@@ -130,7 +239,7 @@ def test_6_valid_firebase_identity_accepted():
     }
     users_store.write(users)
 
-    claims = make_mock_claims(test_uid, test_email)
+    claims = make_mock_claims(test_uid, test_email, project_id="neuroaid-sih-2026")
 
     with patch("core.firebase_auth.verify_firebase_id_token", return_value=claims):
         res = client.get("/api/auth/me", headers={"Authorization": "Bearer valid.firebase.token"})
@@ -141,12 +250,12 @@ def test_6_valid_firebase_identity_accepted():
         assert data["user"]["email"] == test_email
 
 
-# ── Test 7: Unknown Firebase UID Handled Safely ──────────────────────────────
-def test_7_unknown_firebase_uid_handled_safely():
+# ── Test 12: Unknown Firebase UID Handled Safely ─────────────────────────────
+def test_12_unknown_firebase_uid_handled_safely():
     unknown_uid = f"fb-unknown-{uuid.uuid4().hex[:8]}"
     unknown_email = f"unknown_{uuid.uuid4().hex[:6]}@unknown.com"
 
-    claims = make_mock_claims(unknown_uid, unknown_email)
+    claims = make_mock_claims(unknown_uid, unknown_email, project_id="neuroaid-sih-2026")
 
     with patch("core.firebase_auth.verify_firebase_id_token", return_value=claims):
         res = client.get("/api/auth/me", headers={"Authorization": "Bearer valid.but.unregistered"})
@@ -154,8 +263,8 @@ def test_7_unknown_firebase_uid_handled_safely():
         assert "onboarding" in res.json().get("detail", "").lower() or "not found" in res.json().get("detail", "").lower()
 
 
-# ── Test 8: Existing NeuroAid User with firebase_uid Correctly Resolved ───────
-def test_8_existing_user_linked_and_resolved():
+# ── Test 13: Existing NeuroAid User with firebase_uid Correctly Resolved ──────
+def test_13_existing_user_linked_and_resolved():
     test_uid = f"fb-link-uid-{uuid.uuid4().hex[:8]}"
     test_email = f"legacy_{uuid.uuid4().hex[:6]}@neuroaid.local"
     internal_id = f"legacy-user-{uuid.uuid4().hex[:8]}"
@@ -171,7 +280,7 @@ def test_8_existing_user_linked_and_resolved():
     }
     users_store.write(users)
 
-    claims = make_mock_claims(test_uid, test_email)
+    claims = make_mock_claims(test_uid, test_email, project_id="neuroaid-sih-2026")
 
     # Resolution should link firebase_uid automatically
     with patch("core.firebase_auth.verify_firebase_id_token", return_value=claims):
@@ -184,8 +293,8 @@ def test_8_existing_user_linked_and_resolved():
     assert updated_users[internal_id].get("firebase_uid") == test_uid
 
 
-# ── Test 9: Patient RBAC Enforcement ─────────────────────────────────────────
-def test_9_patient_rbac_blocked_from_doctor_endpoints():
+# ── Test 14: Patient RBAC Enforcement ────────────────────────────────────────
+def test_14_patient_rbac_blocked_from_doctor_endpoints():
     p_uid = f"fb-p-{uuid.uuid4().hex[:6]}"
     p_id = f"user-p-{uuid.uuid4().hex[:6]}"
     p_email = f"patient_{uuid.uuid4().hex[:4]}@neuroaid.test"
@@ -200,7 +309,7 @@ def test_9_patient_rbac_blocked_from_doctor_endpoints():
     }
     users_store.write(users)
 
-    claims = make_mock_claims(p_uid, p_email)
+    claims = make_mock_claims(p_uid, p_email, project_id="neuroaid-sih-2026")
 
     with patch("core.firebase_auth.verify_firebase_id_token", return_value=claims):
         # Patient can access their own profile
@@ -212,8 +321,8 @@ def test_9_patient_rbac_blocked_from_doctor_endpoints():
         assert res_doc.status_code == 403
 
 
-# ── Test 10: Caregiver RBAC Enforcement ──────────────────────────────────────
-def test_10_caregiver_rbac():
+# ── Test 15: Caregiver RBAC Enforcement ──────────────────────────────────────
+def test_15_caregiver_rbac():
     cg_uid = f"fb-cg-{uuid.uuid4().hex[:6]}"
     cg_id = f"user-cg-{uuid.uuid4().hex[:6]}"
     cg_email = f"caregiver_{uuid.uuid4().hex[:4]}@neuroaid.test"
@@ -229,7 +338,7 @@ def test_10_caregiver_rbac():
     }
     users_store.write(users)
 
-    claims = make_mock_claims(cg_uid, cg_email)
+    claims = make_mock_claims(cg_uid, cg_email, project_id="neuroaid-sih-2026")
 
     with patch("core.firebase_auth.verify_firebase_id_token", return_value=claims):
         # Caregiver can access care-team patient list
@@ -245,8 +354,8 @@ def test_10_caregiver_rbac():
         assert res_content.status_code == 403
 
 
-# ── Test 11: Doctor RBAC Enforcement ─────────────────────────────────────────
-def test_11_doctor_rbac():
+# ── Test 16: Doctor RBAC Enforcement ─────────────────────────────────────────
+def test_16_doctor_rbac():
     doc_uid = f"fb-doc-{uuid.uuid4().hex[:6]}"
     doc_id = f"user-doc-{uuid.uuid4().hex[:6]}"
     doc_email = f"dr.smith_{uuid.uuid4().hex[:4]}@neuroaid.test"
@@ -263,15 +372,15 @@ def test_11_doctor_rbac():
     }
     users_store.write(users)
 
-    claims = make_mock_claims(doc_uid, doc_email)
+    claims = make_mock_claims(doc_uid, doc_email, project_id="neuroaid-sih-2026")
 
     with patch("core.firebase_auth.verify_firebase_id_token", return_value=claims):
         res_patients = client.get("/api/auth/patients", headers={"Authorization": "Bearer tok.doc.jwt"})
         assert res_patients.status_code == 200
 
 
-# ── Test 12: Admin RBAC Enforcement ──────────────────────────────────────────
-def test_12_admin_rbac():
+# ── Test 17: Admin RBAC Enforcement ──────────────────────────────────────────
+def test_17_admin_rbac():
     adm_uid = f"fb-adm-{uuid.uuid4().hex[:6]}"
     adm_id = f"user-adm-{uuid.uuid4().hex[:6]}"
     adm_email = f"admin_{uuid.uuid4().hex[:4]}@neuroaid.test"
@@ -286,7 +395,7 @@ def test_12_admin_rbac():
     }
     users_store.write(users)
 
-    claims = make_mock_claims(adm_uid, adm_email)
+    claims = make_mock_claims(adm_uid, adm_email, project_id="neuroaid-sih-2026")
 
     with patch("core.firebase_auth.verify_firebase_id_token", return_value=claims):
         # Admin is treated as care-team member
@@ -294,8 +403,8 @@ def test_12_admin_rbac():
         assert res.status_code == 200
 
 
-# ── Test 13: Cross-Patient Access Rejected ───────────────────────────────────
-def test_13_cross_patient_access_rejected():
+# ── Test 18: Cross-Patient Access Rejected ───────────────────────────────────
+def test_18_cross_patient_access_rejected():
     doc1_uid = f"fb-doc1-{uuid.uuid4().hex[:6]}"
     doc1_id = f"doc-1-{uuid.uuid4().hex[:6]}"
     patient_id = f"other-patient-{uuid.uuid4().hex[:6]}"
@@ -318,7 +427,7 @@ def test_13_cross_patient_access_rejected():
     }
     users_store.write(users)
 
-    claims = make_mock_claims(doc1_uid, "unassigned@neuroaid.test")
+    claims = make_mock_claims(doc1_uid, "unassigned@neuroaid.test", project_id="neuroaid-sih-2026")
 
     with patch("core.firebase_auth.verify_firebase_id_token", return_value=claims):
         # Attempting to fetch reminders or results for unassigned patient must be rejected
@@ -326,8 +435,8 @@ def test_13_cross_patient_access_rejected():
         assert res.status_code == 403
 
 
-# ── Test 14: SIH Deterministic Demo Mode Still Works ─────────────────────────
-def test_14_sih_demo_mode_isolated_and_works():
+# ── Test 19: SIH Deterministic Demo Mode Still Works ─────────────────────────
+def test_19_sih_demo_mode_isolated_and_works():
     # First ensure demo data is seeded
     seed_res = client.post("/api/demo/reset-and-seed")
     assert seed_res.status_code == 200
@@ -354,6 +463,29 @@ def test_14_sih_demo_mode_isolated_and_works():
     assert res_c.json()["user"]["role"] == "caregiver"
 
 
+# ── Test 20: Direct RBAC Dependencies Unit Verification ──────────────────────
+def test_20_direct_rbac_dependencies():
+    # Test require_admin, require_patient, require_caregiver, require_doctor
+    with patch("core.firebase_auth.get_current_user") as mock_get_user:
+        mock_get_user.return_value = {"id": "admin-1", "role": "admin"}
+        assert require_admin(authorization="Bearer fake.admin.jwt")["role"] == "admin"
+        with pytest.raises(HTTPException) as exc_info:
+            require_patient(authorization="Bearer fake.admin.jwt")
+        assert exc_info.value.status_code == 403
+
+        mock_get_user.return_value = {"id": "patient-1", "role": "patient"}
+        assert require_patient(authorization="Bearer fake.pat.jwt")["role"] == "patient"
+        with pytest.raises(HTTPException) as exc_info2:
+            require_admin(authorization="Bearer fake.pat.jwt")
+        assert exc_info2.value.status_code == 403
+
+        mock_get_user.return_value = {"id": "cg-1", "role": "caregiver"}
+        assert require_caregiver(authorization="Bearer fake.cg.jwt")["role"] == "caregiver"
+        with pytest.raises(HTTPException) as exc_info3:
+            require_doctor(authorization="Bearer fake.cg.jwt")
+        assert exc_info3.value.status_code == 403
+
+
 # ── Extra Security: Placeholder Passwords Strictly Rejected ──────────────────
 def test_placeholder_password_rejected():
     res = client.post(
@@ -373,7 +505,7 @@ def test_placeholder_password_rejected():
 def test_google_user_cannot_claim_doctor():
     google_uid = f"google-uid-{uuid.uuid4().hex[:6]}"
     google_email = f"doc_impostor_{uuid.uuid4().hex[:4]}@gmail.com"
-    claims = make_mock_claims(google_uid, google_email, is_google=True)
+    claims = make_mock_claims(google_uid, google_email, project_id="neuroaid-sih-2026", is_google=True)
 
     with patch("core.firebase_auth.verify_firebase_id_token", return_value=claims):
         res = client.post(

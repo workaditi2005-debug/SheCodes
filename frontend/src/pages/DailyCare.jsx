@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { completeReminder, getMemoryItems, getReminders } from "../services/api";
+import { toggleReminderStatus, getMemoryItems, getReminders } from "../services/api";
 import { useI18n } from "../i18n/LanguageContext";
+import { speak, playSelectSound } from "../utils/voice";
 
 export default function DailyCare() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [reminders, setReminders] = useState([]);
   const [memories, setMemories] = useState([]);
-  const [completedToast, setCompletedToast] = useState(null);
+  const [toastMsg, setToastMsg] = useState(null);
 
   useEffect(() => {
     Promise.all([getReminders(), getMemoryItems()])
@@ -17,12 +18,37 @@ export default function DailyCare() {
       .catch(() => {});
   }, []);
 
-  async function complete(id, title) {
-    const item = await completeReminder(id);
-    setReminders(list => list.map(r => r.id === id ? { ...r, ...item, status: "completed" } : r));
-    setCompletedToast(title || "Routine item");
-    setTimeout(() => setCompletedToast(null), 3500);
+  async function handleToggle(id, title, currentStatus) {
+    playSelectSound();
+    const nextStatus = currentStatus === "completed" ? "pending" : "completed";
+    
+    // Optimistic UI update
+    setReminders(list => list.map(r => r.id === id ? { ...r, status: nextStatus } : r));
+
+    if (nextStatus === "completed") {
+      const msg = `✓ Marked "${title}" complete.`;
+      setToastMsg({ text: msg, isDone: true });
+      speak(t("reminderDone", "Reminder marked complete."), language);
+    } else {
+      const msg = `↩ Marked "${title}" pending (unmarked).`;
+      setToastMsg({ text: msg, isDone: false });
+      speak(t("reminderUnmarked", "Reminder unmarked."), language);
+    }
+
+    setTimeout(() => setToastMsg(null), 3500);
+
+    try {
+      const updatedItem = await toggleReminderStatus(id, nextStatus);
+      if (updatedItem) {
+        setReminders(list => list.map(r => r.id === id ? { ...r, ...updatedItem, status: nextStatus } : r));
+      }
+    } catch (e) {
+      // Revert if error
+      setReminders(list => list.map(r => r.id === id ? { ...r, status: currentStatus } : r));
+    }
   }
+
+  const completedCount = reminders.filter(r => r.status === "completed").length;
 
   return (
     <main style={{ maxWidth: 960, margin: "0 auto", padding: "40px 24px", color: "#fff", fontFamily: "'DM Sans', sans-serif" }}>
@@ -30,21 +56,31 @@ export default function DailyCare() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
         <div>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(200,241,53,0.12)", border: "1px solid rgba(200,241,53,0.3)", borderRadius: 999, padding: "4px 12px", fontSize: 11, fontWeight: 700, color: "#c8f135", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
-            <span>🌿</span> Indigenous Assam Culturally Rooted · SIH PS 26003
+            <span>🌿</span> Indigenous Assam Culturally Rooted Care Support
           </div>
           <h1 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 36, margin: "4px 0 8px", color: "#f8fafc" }}>{t("dailyCare")}</h1>
           <p style={{ color: "#aab3a3", fontSize: 14, margin: 0, maxWidth: 640 }}>
             {t("offlineCare")} Reminders and familiar personal memory items remain securely cached locally for continuous elder support.
           </p>
         </div>
-        <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "8px 14px", fontSize: 11, color: "#94a3b8" }}>
-          [SYNTHETIC DEMO DATA]
-        </div>
       </div>
 
-      {completedToast && (
-        <div style={{ background: "rgba(34,197,94,0.18)", border: "1px solid rgba(34,197,94,0.4)", color: "#86efac", borderRadius: 12, padding: "12px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 10, fontSize: 13, fontWeight: 700, animation: "fade-in 0.3s" }}>
-          <span>✓</span> Marked "{completedToast}" complete. Synced with offline event log.
+      {toastMsg && (
+        <div style={{
+          background: toastMsg.isDone ? "rgba(34,197,94,0.18)" : "rgba(245,158,11,0.18)",
+          border: `1px solid ${toastMsg.isDone ? "rgba(34,197,94,0.4)" : "rgba(245,158,11,0.4)"}`,
+          color: toastMsg.isDone ? "#86efac" : "#fcd34d",
+          borderRadius: 12,
+          padding: "12px 18px",
+          marginBottom: 20,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          fontSize: 13,
+          fontWeight: 700,
+          animation: "slide-up 0.3s ease"
+        }}>
+          <span>{toastMsg.isDone ? "✓" : "↩"}</span> {toastMsg.text}
         </div>
       )}
 
@@ -54,7 +90,9 @@ export default function DailyCare() {
           <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
             <span>⏰</span> {t("reminders")}
           </h2>
-          <span style={{ fontSize: 12, color: "#94a3b8" }}>{reminders.filter(r => r.status === "completed").length} / {reminders.length} Completed</span>
+          <span style={{ fontSize: 12, color: completedCount === reminders.length && reminders.length > 0 ? "#c8f135" : "#94a3b8", fontWeight: 700 }}>
+            {completedCount} / {reminders.length} {t("completed")}
+          </span>
         </div>
 
         <div style={{ display: "grid", gap: 14 }}>
@@ -84,38 +122,54 @@ export default function DailyCare() {
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span style={{ color: "#c8f135", fontSize: 12, fontWeight: 700, letterSpacing: 0.5 }}>{r.scheduled_time}</span>
                       <span style={{ color: "#64748b", fontSize: 11 }}>•</span>
-                      <strong style={{ fontSize: 16, color: "#f8fafc" }}>{r.title}</strong>
+                      <strong style={{ fontSize: 16, color: "#f8fafc", textDecoration: isDone ? "line-through" : "none", opacity: isDone ? 0.75 : 1 }}>{r.title}</strong>
                     </div>
                     <div style={{ color: "#b4bdb0", fontSize: 13, marginTop: 4 }}>{r.description}</div>
                   </div>
                 </div>
 
                 <div>
-                  {isDone ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#86efac", background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", padding: "6px 14px", borderRadius: 999, fontSize: 12, fontWeight: 700 }}>
-                      ✓ {t("completed")}
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => complete(r.id, r.title)}
-                      style={{
-                        background: "#c8f135",
-                        border: 0,
-                        color: "#0a0d0a",
-                        borderRadius: 12,
-                        padding: "10px 18px",
-                        fontWeight: 800,
-                        fontSize: 13,
-                        cursor: "pointer",
-                        boxShadow: "0 0 16px rgba(200,241,53,0.3)",
-                        transition: "all 0.2s",
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = "#d9f953"; e.currentTarget.style.transform = "scale(1.03)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = "#c8f135"; e.currentTarget.style.transform = "none"; }}
-                    >
-                      {t("complete")}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleToggle(r.id, r.title, r.status)}
+                    title={isDone ? "Click to unmark as pending" : "Click to mark as complete"}
+                    style={{
+                      background: isDone ? "rgba(34,197,94,0.15)" : "#c8f135",
+                      border: `1px solid ${isDone ? "rgba(34,197,94,0.4)" : "none"}`,
+                      color: isDone ? "#86efac" : "#0a0d0a",
+                      borderRadius: 12,
+                      padding: "9px 16px",
+                      fontWeight: 800,
+                      fontSize: 12.5,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      boxShadow: isDone ? "none" : "0 0 16px rgba(200,241,53,0.3)",
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={e => {
+                      if (isDone) {
+                        e.currentTarget.style.background = "rgba(239,68,68,0.2)";
+                        e.currentTarget.style.borderColor = "rgba(239,68,68,0.4)";
+                        e.currentTarget.style.color = "#fca5a5";
+                      } else {
+                        e.currentTarget.style.background = "#d9f953";
+                        e.currentTarget.style.transform = "scale(1.03)";
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (isDone) {
+                        e.currentTarget.style.background = "rgba(34,197,94,0.15)";
+                        e.currentTarget.style.borderColor = "rgba(34,197,94,0.4)";
+                        e.currentTarget.style.color = "#86efac";
+                      } else {
+                        e.currentTarget.style.background = "#c8f135";
+                        e.currentTarget.style.transform = "none";
+                      }
+                    }}
+                  >
+                    {isDone ? `✓ ${t("completed")} (Unmark)` : t("complete")}
+                  </button>
                 </div>
               </article>
             );

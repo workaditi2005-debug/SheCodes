@@ -155,17 +155,20 @@ export default function GameShell({
             <div
               style={{
                 display: "inline-flex",
-                background: "rgba(0,0,0,0.4)",
+                background: "rgba(0,0,0,0.5)",
                 padding: 4,
                 borderRadius: 14,
                 border: "1px solid rgba(255,255,255,0.08)",
                 gap: 4,
+                flexWrap: "wrap",
               }}
             >
               {[
                 { lvl: 1, label: "Easy" },
                 { lvl: 2, label: "Medium" },
                 { lvl: 3, label: "Hard" },
+                { lvl: 4, label: "Pro" },
+                { lvl: 5, label: "Advance" },
               ].map(({ lvl, label }) => {
                 const isActive = difficultyLevel === lvl;
                 return (
@@ -176,18 +179,22 @@ export default function GameShell({
                       onDifficultyChange(lvl);
                     }}
                     style={{
-                      padding: "8px 16px",
+                      padding: "6px 12px",
                       borderRadius: 10,
                       border: "none",
                       background: isActive ? accentColor : "transparent",
                       color: isActive ? "#080808" : "#9ca3af",
                       fontWeight: isActive ? 800 : 600,
-                      fontSize: 13,
+                      fontSize: 12,
                       cursor: "pointer",
                       transition: "all 0.15s ease",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
                     }}
                   >
-                    Level {lvl}
+                    <span>Lvl {lvl}</span>
+                    <span style={{ fontSize: 10, opacity: isActive ? 0.9 : 0.6 }}>({label})</span>
                   </button>
                 );
               })}

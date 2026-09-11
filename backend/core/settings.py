@@ -5,6 +5,17 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+try:
+    from dotenv import load_dotenv
+    backend_env = Path(__file__).resolve().parents[1] / ".env"
+    if backend_env.is_file():
+        load_dotenv(backend_env)
+    else:
+        load_dotenv()
+except ImportError:
+    pass
+
+
 def _parse_bool(value: str, default: bool) -> bool:
     if value is None:
         return default
@@ -61,7 +72,7 @@ class Settings:
             max_login_attempts=int(os.getenv("MAX_LOGIN_ATTEMPTS", "5")),
             lockout_duration_seconds=int(os.getenv("LOCKOUT_DURATION_SECONDS", "900")),
             audit_log_enabled=_parse_bool(os.getenv("AUDIT_LOG_ENABLED"), True),
-            firebase_project_id=os.getenv("FIREBASE_PROJECT_ID", "NeuroAid-SIH-2026"),
+            firebase_project_id=os.getenv("FIREBASE_PROJECT_ID", "neuroaid-sih-2026"),
             firebase_credentials_path=os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or os.getenv("FIREBASE_CREDENTIALS_PATH"),
         )
 

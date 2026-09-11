@@ -1,14 +1,27 @@
 import { useState, useEffect, useRef } from "react";
 import GameShell from "./GameShell";
 import { OBJECT_RECOGNITION_QUESTIONS } from "../../data/gameContent";
+import { useI18n } from "../../i18n/LanguageContext";
 import { playTapSound, playMatchSound, playGentleMissSound } from "../../utils/gameAudio";
 import { submitGameSession, getGameRecommendation } from "../../services/api";
 
 const LIME = "#C8F135";
 
+function getTotalRounds(lvl) {
+  switch (lvl) {
+    case 1: return 3; // Easy
+    case 2: return 4; // Medium
+    case 3: return 5; // Hard
+    case 4: return 7; // Pro
+    case 5: return 9; // Advance
+    default: return 3;
+  }
+}
+
 export default function ObjectRecognitionGame({ setPage }) {
+  const { lang } = useI18n();
   const [level, setLevel] = useState(1);
-  const totalRounds = level === 1 ? 3 : level === 2 ? 4 : 5;
+  const totalRounds = getTotalRounds(level);
 
   const [currentRound, setCurrentRound] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -29,7 +42,7 @@ export default function ObjectRecognitionGame({ setPage }) {
   useEffect(() => {
     getGameRecommendation("object_recognition")
       .then((res) => {
-        if (res && res.recommended_level && [1, 2, 3].includes(res.recommended_level)) {
+        if (res && res.recommended_level && [1, 2, 3, 4, 5].includes(res.recommended_level)) {
           setLevel(res.recommended_level);
         }
       })
@@ -42,8 +55,11 @@ export default function ObjectRecognitionGame({ setPage }) {
   useEffect(() => {
     const onVoiceAnswer = event => {
       const answer = event.detail?.answer;
-      if (!answer) return;
-      const index = question.options.findIndex(option => option.label.en.toLowerCase() === answer || answer.includes(option.label.en.toLowerCase()));
+      if (!answer || !question?.options) return;
+      const index = question.options.findIndex(option => {
+        const optionText = option.text?.en || "";
+        return optionText.toLowerCase() === answer || answer.includes(optionText.toLowerCase());
+      });
       if (index >= 0) handleOptionSelect(question.options[index], index);
     };
     window.addEventListener("neuroaid:voice-command", onVoiceAnswer);
@@ -153,9 +169,9 @@ export default function ObjectRecognitionGame({ setPage }) {
         cognitive_domain: "Visual & Semantic Recognition",
         adaptive_difficulty: {
           previous_level: level,
-          new_level: finalMistakes <= 1 && level < 3 ? level + 1 : level,
+          new_level: finalMistakes <= 1 && level < 5 ? level + 1 : level,
           reason: ["accuracy above target", "stable response time"],
-          adjustment: finalMistakes <= 1 && level < 3 ? "increase" : "maintain",
+          adjustment: finalMistakes <= 1 && level < 5 ? "increase" : "maintain",
         },
       });
     }
@@ -180,7 +196,7 @@ export default function ObjectRecognitionGame({ setPage }) {
       isCompleted={isCompleted}
       completionResult={completionResult}
       onPlayAgain={(nextLvl) => {
-        if (nextLvl && [1, 2, 3].includes(nextLvl)) {
+        if (nextLvl && [1, 2, 3, 4, 5].includes(nextLvl)) {
           setLevel(nextLvl);
         } else {
           initLevel(level);
@@ -221,7 +237,7 @@ export default function ObjectRecognitionGame({ setPage }) {
             marginBottom: 10,
           }}
         >
-          {question.question.en}
+          {question.question[lang] || question.question.en}
         </h3>
 
         {/* Hint text if requested */}
@@ -238,7 +254,7 @@ export default function ObjectRecognitionGame({ setPage }) {
               display: "inline-block",
             }}
           >
-            💡 Hint: {question.hint.en}
+            💡 Hint: {question.hint[lang] || question.hint.en}
           </div>
         )}
 
@@ -255,6 +271,7 @@ export default function ObjectRecognitionGame({ setPage }) {
             const isSelected = selectedOption === idx;
             const isCorrect = isSelected && feedbackState === "correct";
             const isWrong = isSelected && feedbackState === "wrong";
+            const optionText = opt.text[lang] || opt.text.en;
 
             return (
               <button
@@ -285,7 +302,7 @@ export default function ObjectRecognitionGame({ setPage }) {
                   boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
                 }}
               >
-                <span>{opt.text.en}</span>
+                <span>{optionText}</span>
                 {isCorrect && <span style={{ fontSize: 20 }}>✓</span>}
                 {isWrong && <span style={{ fontSize: 20 }}>✗</span>}
               </button>

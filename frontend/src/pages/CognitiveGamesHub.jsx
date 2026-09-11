@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { DarkCard, Btn } from "../components/RiskDashboard";
 import { getGamesList, getGameStats } from "../services/api";
+import { useI18n } from "../i18n/LanguageContext";
 
 const LIME = "#C8F135";
 
@@ -8,56 +9,67 @@ const GAMES_META = [
   {
     id: "memory_match",
     page: "game-match",
+    titleKey: "memoryMatchTitle",
     title: "Memory Match",
     domain: "Visuospatial & Memory",
     icon: "🃏",
     color: "#34d399",
+    descKey: "matchCardsInst",
     desc: "Find and pair matching everyday and North Eastern cultural symbols.",
     benefit: "Stimulates spatial memory and visual recall.",
   },
   {
     id: "sequence_recall",
     page: "game-sequence",
+    titleKey: "sequenceRecallTitle",
     title: "Sequence Recall",
     domain: "Working Memory & Concentration",
     icon: "🔢",
     color: "#60a5fa",
+    descKey: "sequenceInst",
     desc: "Remember and repeat the sequence as each colorful item lights up.",
     benefit: "Enhances attention span and sequential working memory.",
   },
   {
     id: "object_recognition",
     page: "game-object",
+    titleKey: "objectRecognitionTitle",
     title: "Object Recognition",
     domain: "Visual & Semantic Recognition",
     icon: "🔍",
     color: "#f59e0b",
+    descKey: "objectInst",
     desc: "Recognize familiar cultural objects and traditional heritage items.",
     benefit: "Engages semantic retrieval and visual object identification.",
   },
   {
     id: "pattern_completion",
     page: "game-pattern",
+    titleKey: "patternCompletionTitle",
     title: "Pattern Completion",
     domain: "Executive Function & Patterns",
     icon: "🧩",
     color: "#a78bfa",
+    descKey: "patternInst",
     desc: "Look at the repeating pattern and discover the missing piece.",
     benefit: "Exercises fluid reasoning and cognitive problem-solving.",
   },
   {
     id: "daily_routine",
     page: "game-routine",
+    titleKey: "dailyRoutineTitle",
     title: "Daily Routine Recall",
     domain: "Daily Routine & Orientation",
     icon: "🌅",
     color: "#fb923c",
+    descKey: "routineInst",
     desc: "Order everyday activities from morning tea to night rest.",
     benefit: "Strengthens temporal orientation and procedural sequencing.",
   },
 ];
 
 export default function CognitiveGamesHub({ setPage }) {
+  const { t } = useI18n();
   const [stats, setStats] = useState({
     total_games_played: 0,
     total_stars_earned: 0,
@@ -105,7 +117,7 @@ export default function CognitiveGamesHub({ setPage }) {
               display: "inline-block",
             }}
           />
-          Adaptive Brain Training • SIH PS 26003
+          {t("gameHub", "Brain Games")} • Adaptive AI Training
         </div>
 
         <h1
@@ -118,11 +130,10 @@ export default function CognitiveGamesHub({ setPage }) {
             marginBottom: 8,
           }}
         >
-          Cognitive <span style={{ color: LIME }}>Game Hub.</span>
+          {t("gameHub", "Brain Games")} <span style={{ color: LIME }}>Hub.</span>
         </h1>
         <p style={{ color: "#9ca3af", fontSize: 15, lineHeight: 1.6, maxWidth: 680 }}>
-          Engaging, gentle brain-training games designed specifically for elderly memory health,
-          everyday routine orientation, and visual stimulation.
+          {t("onscreenInstruction", "Engaging, gentle brain-training games designed specifically for memory health and routine orientation.")}
         </p>
       </div>
 
@@ -154,7 +165,7 @@ export default function CognitiveGamesHub({ setPage }) {
             </div>
             <div>
               <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase" }}>
-                Total Stars
+                {t("score", "Total Stars")}
               </div>
               <div style={{ fontSize: 28, fontWeight: 900, color: "#fbbf24" }}>
                 {stats.total_stars_earned || 0}
@@ -182,7 +193,7 @@ export default function CognitiveGamesHub({ setPage }) {
             </div>
             <div>
               <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase" }}>
-                Sessions Played
+                {t("level", "Sessions")}
               </div>
               <div style={{ fontSize: 28, fontWeight: 900, color: "#60a5fa" }}>
                 {stats.total_games_played || 0}
@@ -210,7 +221,7 @@ export default function CognitiveGamesHub({ setPage }) {
             </div>
             <div>
               <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase" }}>
-                Active Streak
+                {t("highScore", "Active Streak")}
               </div>
               <div style={{ fontSize: 28, fontWeight: 900, color: "#f87171" }}>
                 {stats.current_streak_days || 0} <span style={{ fontSize: 16 }}>Days</span>
@@ -285,14 +296,14 @@ export default function CognitiveGamesHub({ setPage }) {
                       margin: 0,
                     }}
                   >
-                    {game.title}
+                    {t(game.titleKey, game.title)}
                   </h3>
-                  <span style={{ fontSize: 12, color: "#9ca3af" }}>3 Difficulty Levels</span>
+                  <span style={{ fontSize: 12, color: "#9ca3af" }}>5 Difficulty Levels (Easy to Advance)</span>
                 </div>
               </div>
 
               <p style={{ color: "#d1d5db", fontSize: 14, lineHeight: 1.5, marginBottom: 12 }}>
-                {game.desc}
+                {t(game.descKey, game.desc)}
               </p>
 
               <div
@@ -321,7 +332,7 @@ export default function CognitiveGamesHub({ setPage }) {
                 boxShadow: `0 6px 20px ${game.color}33`,
               }}
             >
-              Play Game →
+              {t("playNow", "Play Game")} →
             </Btn>
           </DarkCard>
         ))}
@@ -329,3 +340,4 @@ export default function CognitiveGamesHub({ setPage }) {
     </div>
   );
 }
+

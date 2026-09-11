@@ -3,6 +3,7 @@ import { T } from "../utils/theme";
 import { DarkCard, Btn, Stars } from "../components/RiskDashboard";
 import { saveSession, getUser, firebaseOnboard, fetchMe } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import LanguageSelector from "../components/common/LanguageSelector";
 
 const LIME = "#C8F135";
 
@@ -192,6 +193,10 @@ export default function LoginPage({ setView, setRole, setCurrentUser, onAuthSucc
   return (
     <div style={{ minHeight: "100vh", background: `radial-gradient(ellipse 80% 60% at 50% -10%, rgba(200,40,40,0.20) 0%, transparent 60%), radial-gradient(ellipse 50% 40% at 0% 100%, rgba(245,158,11,0.08) 0%, transparent 55%), ${T.bg}`, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "'DM Sans',sans-serif", position: "relative", overflow: "hidden" }}>
       <Stars count={60} />
+
+      <div style={{ position: "fixed", top: 20, right: 24, zIndex: 10 }}>
+        <LanguageSelector />
+      </div>
 
       <div style={{ width: "100%", maxWidth: isDoctorRegister ? 500 : 420, position: "relative", zIndex: 2 }}>
 

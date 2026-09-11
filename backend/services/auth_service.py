@@ -396,16 +396,31 @@ def logout_user(authorization: str) -> Dict[str, str]:
     sessions = get_sessions()
 
     target_key = token_h if token_h in sessions else (token if token in sessions else None)
-    if not target_key:
-        raise HTTPException(status_code=401, detail="Invalid or expired session.")
+    if target_key:
+        user_id = sessions[target_key].get("user_id")
+        del sessions[target_key]
+        sessions_store.write(sessions)
+        record(
+            event="auth.logout",
+            actor_id=user_id,
+            outcome="success",
+        )
+        return {"message": "Logged out successfully."}
 
-    user_id = sessions[target_key].get("user_id")
-    del sessions[target_key]
-    sessions_store.write(sessions)
+    # Firebase ID token or demo token graceful clearance
+    user_id = None
+    try:
+        if token.count(".") == 2:
+            claims = firebase_auth.verify_firebase_id_token(token)
+            if claims:
+                resolved = firebase_auth.resolve_user_by_firebase_claims(claims)
+                user_id = resolved["id"] if resolved else (claims.get("uid") or claims.get("sub"))
+    except Exception:
+        pass
 
     record(
         event="auth.logout",
-        actor_id=user_id,
+        actor_id=user_id or "unknown",
         outcome="success",
     )
     return {"message": "Logged out successfully."}
@@ -425,7 +440,11 @@ def verify_doctor_patient_relationship(care_member_id: str, patient_id: str) -> 
     if patient_id in care_member.get("patient_list", []):
         return True
     patient = users.get(patient_id)
-    if patient and patient.get("assigned_doctor_id") == care_member_id:
+    if patient and (
+        patient.get("assigned_doctor_id") == care_member_id
+        or patient.get("caregiver_id") == care_member_id
+        or patient.get("assigned_caregiver_id") == care_member_id
+    ):
         return True
     return False
 
@@ -477,13 +496,19 @@ def list_patients_for_doctor(doctor_id: str) -> List[Dict[str, Any]]:
 
     patients = []
     for user in users.values():
-        if user.get("role") != "patient" or user["id"] not in enrolled_ids:
+        if user.get("role") != "patient":
             continue
-        patient = safe_user(user, include_private=False)
-        history = all_results.get(user["id"], [])
-        patient["sessionCount"] = len(history)
-        patient["lastResult"] = history[-1] if history else None
-        patients.append(patient)
+        if (
+            user["id"] in enrolled_ids
+            or user.get("assigned_doctor_id") == doctor_id
+            or user.get("caregiver_id") == doctor_id
+            or user.get("assigned_caregiver_id") == doctor_id
+        ):
+            patient = safe_user(user, include_private=False)
+            history = all_results.get(user["id"], [])
+            patient["sessionCount"] = len(history)
+            patient["lastResult"] = history[-1] if history else None
+            patients.append(patient)
 
     patients.sort(key=lambda item: item.get("last_login", ""), reverse=True)
     return patients
@@ -525,6 +550,26 @@ def request_doctor_enrollment(patient_id: str, doctor_id: str) -> Dict[str, Any]
     patient["pending_doctor_id"] = doctor_id
     users_store.write(users)
 
+    # In-app notification for the doctor
+    try:
+        from core.storage import messages_store
+        msgs = messages_store.read()
+        if isinstance(msgs, list):
+            msgs.append({
+                "id": str(uuid.uuid4()),
+                "sender_id": patient_id,
+                "sender_name": patient["full_name"],
+                "sender_role": "patient",
+                "recipient_id": doctor_id,
+                "text": f"New Patient Connection Request: {patient['full_name']} ({patient.get('email', '')}) has requested you as their supervising neurologist.",
+                "timestamp": utcnow_iso(),
+                "deleted_by": [],
+                "type": "enrollment_request",
+            })
+            messages_store.write(msgs)
+    except Exception:
+        pass
+
     record(
         event="care_team.enrollment_requested",
         actor_id=patient_id,
@@ -560,6 +605,26 @@ def respond_to_enrollment_request(doctor_id: str, patient_id: str, action: str) 
 
     users_store.write(users)
     verb = "approved" if action == "approve" else "rejected"
+
+    # In-app notification for the patient
+    try:
+        from core.storage import messages_store
+        msgs = messages_store.read()
+        if isinstance(msgs, list):
+            msgs.append({
+                "id": str(uuid.uuid4()),
+                "sender_id": doctor_id,
+                "sender_name": doctor["full_name"],
+                "sender_role": "doctor",
+                "recipient_id": patient_id,
+                "text": f"Your enrollment request has been {verb} by Dr. {doctor['full_name']}.",
+                "timestamp": utcnow_iso(),
+                "deleted_by": [],
+                "type": "enrollment_response",
+            })
+            messages_store.write(msgs)
+    except Exception:
+        pass
     record(
         event=f"care_team.enrollment_{action}d",
         actor_id=doctor_id,

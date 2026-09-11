@@ -4,9 +4,20 @@ import { SEQUENCE_RECALL_PALETTE } from "../../data/gameContent";
 import { playTapSound, playMatchSound, playGentleMissSound } from "../../utils/gameAudio";
 import { submitGameSession, getGameRecommendation } from "../../services/api";
 
+function getSequenceParams(lvl) {
+  switch (lvl) {
+    case 1: return { length: 3, interval: 1100 }; // Easy
+    case 2: return { length: 4, interval: 900 };  // Medium
+    case 3: return { length: 5, interval: 750 };  // Hard
+    case 4: return { length: 6, interval: 600 };  // Pro
+    case 5: return { length: 8, interval: 450 };  // Advance
+    default: return { length: 3, interval: 1100 };
+  }
+}
+
 export default function SequenceRecallGame({ setPage }) {
   const [level, setLevel] = useState(1);
-  const targetLength = level === 1 ? 3 : level === 2 ? 4 : 5;
+  const { length: targetLength, interval: flashInterval } = getSequenceParams(level);
 
   const [sequence, setSequence] = useState([]);
   const [activeHighlight, setActiveHighlight] = useState(null); // button id currently lit
@@ -28,7 +39,7 @@ export default function SequenceRecallGame({ setPage }) {
   useEffect(() => {
     getGameRecommendation("sequence_recall")
       .then((res) => {
-        if (res && res.recommended_level && [1, 2, 3].includes(res.recommended_level)) {
+        if (res && res.recommended_level && [1, 2, 3, 4, 5].includes(res.recommended_level)) {
           setLevel(res.recommended_level);
         }
       })
@@ -47,7 +58,7 @@ export default function SequenceRecallGame({ setPage }) {
   }
 
   function startRound(lvl = level) {
-    const len = lvl === 1 ? 3 : lvl === 2 ? 4 : 5;
+    const { length: len } = getSequenceParams(lvl);
     const newSeq = generateSequence(len);
     setSequence(newSeq);
     setUserStep(0);
@@ -66,7 +77,7 @@ export default function SequenceRecallGame({ setPage }) {
 
   function playSequence(seq, lvl) {
     setPhase("watch");
-    const interval = lvl === 1 ? 1100 : lvl === 2 ? 900 : 800;
+    const { interval } = getSequenceParams(lvl);
 
     seq.forEach((itemId, idx) => {
       playbackTimeoutRef.current = setTimeout(() => {
@@ -182,9 +193,9 @@ export default function SequenceRecallGame({ setPage }) {
         cognitive_domain: "Working Memory & Concentration",
         adaptive_difficulty: {
           previous_level: level,
-          new_level: finalMistakes === 0 && level < 3 ? level + 1 : level,
+          new_level: finalMistakes === 0 && level < 5 ? level + 1 : level,
           reason: ["accuracy above target", "stable response time"],
-          adjustment: finalMistakes === 0 && level < 3 ? "increase" : "maintain",
+          adjustment: finalMistakes === 0 && level < 5 ? "increase" : "maintain",
         },
       });
     }
@@ -213,7 +224,7 @@ export default function SequenceRecallGame({ setPage }) {
       isCompleted={isCompleted}
       completionResult={completionResult}
       onPlayAgain={(nextLvl) => {
-        if (nextLvl && [1, 2, 3].includes(nextLvl)) {
+        if (nextLvl && [1, 2, 3, 4, 5].includes(nextLvl)) {
           setLevel(nextLvl);
         } else {
           initLevel(level);

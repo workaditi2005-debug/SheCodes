@@ -39,6 +39,7 @@ import SequenceRecallGame     from "./components/games/SequenceRecallGame";
 import ObjectRecognitionGame  from "./components/games/ObjectRecognitionGame";
 import PatternCompletionGame  from "./components/games/PatternCompletionGame";
 import DailyRoutineGame       from "./components/games/DailyRoutineGame";
+import NeuroBot               from "./components/NeuroBot";
 
 injectStyles();
 
@@ -71,22 +72,32 @@ function MainApp() {
 
   async function handleLogout() {
     try {
-      await firebaseLogout();
+      if (firebaseLogout) {
+        await firebaseLogout();
+      }
     } catch (e) {
       console.warn("Firebase signout error:", e);
     }
-    await logout();
-    setCurrentUser(null);
-    setRole("user");
-    setPage("dashboard");
-    setViewState("landing");
-    setShowProfile(false);
+    try {
+      await logout();
+    } catch (e) {
+      console.warn("Backend logout error:", e);
+    } finally {
+      clearSession();
+      setCurrentUser(null);
+      setRole("user");
+      setPage("dashboard");
+      setViewState("landing");
+      setShowProfile(false);
+      setDemoActive(false);
+    }
   }
 
   function setView(v) {
     if (v === "logout") { handleLogout(); return; }
-    if (v === "dashboard")        { setPage("dashboard");        }
-    if (v === "doctor-dashboard") { setPage("doctor-dashboard"); }
+    if (v === "dashboard")           { setPage("dashboard");           }
+    if (v === "doctor-dashboard")    { setPage("doctor-dashboard");    }
+    if (v === "caregiver-dashboard") { setPage("caregiver-dashboard"); }
     setViewState(v);
   }
 
@@ -184,11 +195,13 @@ function MainApp() {
         ) : view === "login" ? (
           <LoginPage
             setView={setView}
-            setRole={r => setRole(r === "doctor" ? "doctor" : "user")}
+            setRole={r => setRole(r === "doctor" ? "doctor" : r === "caregiver" ? "caregiver" : "user")}
             setCurrentUser={setCurrentUser}
             onAuthSuccess={handleAuthSuccess}
             onStartSihDemo={handleStartSihDemo}
           />
+        ) : !currentUser && !demoActive ? (
+          <LandingPage setView={setView} currentUser={null} onStartSihDemo={handleStartSihDemo} />
         ) : (
           <Shell
             role={role}
@@ -226,6 +239,7 @@ function MainApp() {
             {content}
           </Shell>
         )}
+        <NeuroBot user={currentUser} />
       </AssessmentProvider>
     </LanguageProvider>
   );

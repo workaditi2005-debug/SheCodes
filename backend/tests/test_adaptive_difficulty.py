@@ -6,12 +6,15 @@ explainability schema compliance, and API integration.
 """
 import os
 import sys
+import tempfile
 import unittest
+from pathlib import Path
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from fastapi.testclient import TestClient
 from core.adaptive_difficulty import AdaptiveDifficultyEngine
+from core.storage import game_sessions_store
 from main import app
 
 
@@ -19,6 +22,17 @@ class TestAdaptiveDifficultyEngine(unittest.TestCase):
 
     def setUp(self):
         self.client = TestClient(app)
+        self._temp_dir = tempfile.TemporaryDirectory()
+        self._orig_game_sessions_path = game_sessions_store.path
+        temp_file = Path(self._temp_dir.name) / "test_game_sessions.json"
+        temp_file.write_text("[]", encoding="utf-8")
+        game_sessions_store.path = temp_file
+
+    def tearDown(self):
+        if hasattr(self, "_orig_game_sessions_path"):
+            game_sessions_store.path = self._orig_game_sessions_path
+        if hasattr(self, "_temp_dir"):
+            self._temp_dir.cleanup()
 
     def test_promotion_level_1_to_2(self):
         result = AdaptiveDifficultyEngine.evaluate_adjustment(
@@ -55,8 +69,7 @@ class TestAdaptiveDifficultyEngine(unittest.TestCase):
         self.assertEqual(result["adjustment"], "increase")
         self.assertIn("accuracy above target", result["reason"])
 
-    def test_promotion_level_3_clamped(self):
-        # Level 3 cannot promote past 3
+    def test_promotion_level_3_to_4(self):
         result = AdaptiveDifficultyEngine.evaluate_adjustment(
             game_id="object_recognition",
             previous_level=3,
@@ -66,7 +79,22 @@ class TestAdaptiveDifficultyEngine(unittest.TestCase):
             completion_rate=1.0,
         )
         self.assertEqual(result["previous_level"], 3)
-        self.assertEqual(result["new_level"], 3)
+        self.assertEqual(result["new_level"], 4)
+        self.assertEqual(result["adjustment"], "increase")
+        self.assertIn("accuracy above target", result["reason"])
+
+    def test_promotion_level_5_clamped(self):
+        # Level 5 cannot promote past 5
+        result = AdaptiveDifficultyEngine.evaluate_adjustment(
+            game_id="object_recognition",
+            previous_level=5,
+            accuracy=0.96,
+            response_time=1.0,
+            error_rate=0.04,
+            completion_rate=1.0,
+        )
+        self.assertEqual(result["previous_level"], 5)
+        self.assertEqual(result["new_level"], 5)
         self.assertEqual(result["adjustment"], "maintain")
         self.assertIn("mastery maintained at highest level", result["reason"])
 

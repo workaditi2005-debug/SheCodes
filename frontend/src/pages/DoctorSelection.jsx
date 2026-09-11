@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { DarkCard, Btn } from "../components/RiskDashboard";
-import { getDoctors } from "../services/api";
+import { getDoctors, getMyDoctor, enrollWithDoctor } from "../services/api";
 
 const LIME = "#C8F135";
 const T_RED = "#e84040";
@@ -8,20 +8,6 @@ const T_AMBER = "#f59e0b";
 const T_GREEN = "#4ade80";
 const T_CREAM = "#f0ece3";
 const T_CREAMFAINT = "rgba(240,236,227,0.5)";
-
-async function apiFetch(path, method = "GET", body = null) {
-  const token = sessionStorage.getItem("neuroaid_token");
-  const res = await fetch(`/api${path}`, {
-    method,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Request failed");
-  }
-  return res.json();
-}
 
 export default function DoctorSelection({ setPage }) {
   const [doctors,      setDoctors]      = useState([]);
@@ -34,12 +20,15 @@ export default function DoctorSelection({ setPage }) {
 
   async function loadData() {
     try {
-      const [list, myData] = await Promise.all([getDoctors(), apiFetch("/auth/doctors/my-doctor")]);
+      const [list, myData] = await Promise.all([
+        getDoctors().catch(() => []),
+        getMyDoctor().catch(() => ({ doctor: null, pending_doctor: null })),
+      ]);
       setDoctors(list || []);
-      setMyDoctor(myData.doctor || null);
-      setPendingDoc(myData.pending_doctor || null);
+      setMyDoctor(myData?.doctor || null);
+      setPendingDoc(myData?.pending_doctor || null);
     } catch (e) {
-      // silently handle
+      console.warn("DoctorSelection loadData error:", e);
     } finally {
       setLoading(false);
     }
@@ -50,11 +39,11 @@ export default function DoctorSelection({ setPage }) {
   async function handleEnroll(doctorId) {
     setEnrolling(doctorId); setError(null); setSuccess(null);
     try {
-      await apiFetch("/auth/doctors/enroll", "POST", { doctor_id: doctorId });
+      await enrollWithDoctor(doctorId);
       setSuccess("Enrollment request sent! Your doctor will review and approve shortly.");
       await loadData();
     } catch (e) {
-      setError(e.message);
+      setError(e.message || "Failed to send enrollment request.");
     } finally {
       setEnrolling(null);
     }
