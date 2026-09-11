@@ -120,78 +120,6 @@
     "created_at": "2026-09-09T20:24:36+00:00"
   },
   {
-    "id": "rem-sih-001",
-    "user_id": "sih-demo-patient-001",
-    "category": "medicine",
-    "title": "Donepezil 5mg (\u09ae\u0997\u099c\u09c1\u09f0 \u0994\u09b7\u09a7)",
-    "description": "Morning memory maintenance prescribed by Dr. Hazarika",
-    "scheduled_time": "08:00",
-    "recurrence": "daily",
-    "days_of_week": [
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri",
-      "Sat",
-      "Sun"
-    ],
-    "dosage": "1 tablet after breakfast",
-    "instructions": "Take with warm water",
-    "status": "pending",
-    "last_completed_at": null,
-    "created_by": "caregiver",
-    "created_at": "2026-09-09T21:02:04+00:00"
-  },
-  {
-    "id": "rem-sih-002",
-    "user_id": "sih-demo-patient-001",
-    "category": "hydration",
-    "title": "Drink a Glass of Water (\u09aa\u09be\u09a8\u09c0 \u0996\u09cb\u09f1\u09be)",
-    "description": "Hydration reminder to reduce cognitive fatigue",
-    "scheduled_time": "11:30",
-    "recurrence": "daily",
-    "days_of_week": [
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri",
-      "Sat",
-      "Sun"
-    ],
-    "dosage": "1 full glass (250ml)",
-    "instructions": null,
-    "status": "pending",
-    "last_completed_at": null,
-    "created_by": "patient",
-    "created_at": "2026-09-09T21:02:04+00:00"
-  },
-  {
-    "id": "rem-sih-003",
-    "user_id": "sih-demo-patient-001",
-    "category": "activity",
-    "title": "Evening Walk & Breathing (\u09b8\u09a8\u09cd\u09a7\u09bf\u09af\u09bc\u09be \u0996\u09cb\u099c\u0995\u09a2\u09bc\u09be)",
-    "description": "Light walk in the garden",
-    "scheduled_time": "17:00",
-    "recurrence": "daily",
-    "days_of_week": [
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri",
-      "Sat",
-      "Sun"
-    ],
-    "dosage": "20 minutes gentle pacing",
-    "instructions": "Wear comfortable walking shoes",
-    "status": "pending",
-    "last_completed_at": null,
-    "created_by": "caregiver",
-    "created_at": "2026-09-09T21:02:04+00:00"
-  },
-  {
     "id": "e6a6d5c7-69d3-4407-befa-efe11d68e05c",
     "user_id": "62016f45-d650-4f1e-b21a-065d81d92127",
     "category": "medicine",
@@ -310,5 +238,77 @@
     "last_completed_at": "2026-09-10T03:46:31+00:00",
     "created_by": "caregiver",
     "created_at": "2026-09-10T03:41:49+00:00"
+  },
+  {
+    "id": "rem-sih-001",
+    "user_id": "sih-demo-patient-001",
+    "category": "medicine",
+    "title": "Donepezil 5mg (\u09ae\u0997\u099c\u09c1\u09f0 \u0994\u09b7\u09a7)",
+    "description": "Morning memory maintenance prescribed by Dr. Hazarika",
+    "scheduled_time": "08:00",
+    "recurrence": "daily",
+    "days_of_week": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun"
+    ],
+    "dosage": "1 tablet after breakfast",
+    "instructions": "Take with warm water",
+    "status": "pending",
+    "last_completed_at": null,
+    "created_by": "caregiver",
+    "created_at": "2026-09-10T20:23:49+00:00"
+  },
+  {
+    "id": "rem-sih-002",
+    "user_id": "sih-demo-patient-001",
+    "category": "hydration",
+    "title": "Drink a Glass of Water (\u09aa\u09be\u09a8\u09c0 \u0996\u09cb\u09f1\u09be)",
+    "description": "Hydration reminder to reduce cognitive fatigue",
+    "scheduled_time": "11:30",
+    "recurrence": "daily",
+    "days_of_week": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun"
+    ],
+    "dosage": "1 full glass (250ml)",
+    "instructions": null,
+    "status": "pending",
+    "last_completed_at": null,
+    "created_by": "patient",
+    "created_at": "2026-09-10T20:23:49+00:00"
+  },
+  {
+    "id": "rem-sih-003",
+    "user_id": "sih-demo-patient-001",
+    "category": "activity",
+    "title": "Evening Walk & Breathing (\u09b8\u09a8\u09cd\u09a7\u09bf\u09af\u09bc\u09be \u0996\u09cb\u099c\u0995\u09a2\u09bc\u09be)",
+    "description": "Light walk in the garden",
+    "scheduled_time": "17:00",
+    "recurrence": "daily",
+    "days_of_week": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun"
+    ],
+    "dosage": "20 minutes gentle pacing",
+    "instructions": "Wear comfortable walking shoes",
+    "status": "pending",
+    "last_completed_at": null,
+    "created_by": "caregiver",
+    "created_at": "2026-09-10T20:23:49+00:00"
   }
 ]

@@ -3299,5 +3299,19 @@
     "metadata": {
       "role": "patient"
     }
+  },
+  {
+    "id": "028b7741-bcb0-4bd7-9194-94339a49ab1e",
+    "timestamp": "2026-09-10T20:23:50+00:00",
+    "event": "demo.seeded",
+    "actor_id": "sih_system",
+    "actor_role": "guest",
+    "subject_id": null,
+    "outcome": "success",
+    "client_ip": null,
+    "metadata": {
+      "patient_id": "sih-demo-patient-001",
+      "doctor_id": "sih-demo-doctor-001"
+    }
   }
 ]
