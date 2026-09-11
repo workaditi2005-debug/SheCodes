@@ -17,6 +17,24 @@ export function clearSession() {
   sessionStorage.removeItem("neuroaid_user");
 }
 
+// ── Firebase ID Token readiness (Prepared for upcoming backend token verification) ──
+let _firebaseTokenGetter = null;
+
+export function registerFirebaseTokenGetter(getterFn) {
+  _firebaseTokenGetter = getterFn;
+}
+
+export async function getFirebaseIdToken(forceRefresh = false) {
+  if (typeof _firebaseTokenGetter === "function") {
+    try {
+      return await _firebaseTokenGetter(forceRefresh);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 
 // ── Core request ──────────────────────────────────────────────────────────────
 async function request(method, path, body, requiresAuth = false) {

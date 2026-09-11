@@ -2,6 +2,7 @@ import { useState } from "react";
 import { injectStyles } from "./utils/theme";
 import { Shell } from "./components/RiskDashboard";
 import { AssessmentProvider } from "./context/AssessmentContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { getUser, isLoggedIn, logout } from "./services/api";
 import OfflineStatusIndicator from "./components/common/OfflineStatusIndicator";
 import { LanguageProvider } from "./i18n/LanguageContext";
@@ -52,8 +53,9 @@ function getInitialState() {
   return { view: "landing", role: "user", page: "dashboard", user: null };
 }
 
-export default function App() {
+function MainApp() {
   const init = getInitialState();
+  const { logout: firebaseLogout } = useAuth();
 
   const [view,           setViewState]      = useState(init.view);
   const [role,           setRole]           = useState(init.role);
@@ -68,6 +70,11 @@ export default function App() {
   const [pendingRole,    setPendingRole]     = useState(null);
 
   async function handleLogout() {
+    try {
+      await firebaseLogout();
+    } catch (e) {
+      console.warn("Firebase signout error:", e);
+    }
     await logout();
     setCurrentUser(null);
     setRole("user");
@@ -221,5 +228,13 @@ export default function App() {
         )}
       </AssessmentProvider>
     </LanguageProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
   );
 }
